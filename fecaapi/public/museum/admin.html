@@ -193,13 +193,10 @@
 </div>
 
 <script>
-    const SUPABASE_URL = "https://xmbuqisqmxigdcuivdjc.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtYnVxaXNxbXhpZ2RjdWl2ZGpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5ODkzNDEsImV4cCI6MjA4MTU2NTM0MX0.QZS1y1gwQnTWIFsWw2Jw9NoNL6j0vgUmufjwul88T3g";
-    
-    const sbAdmin = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // Utilisation de l'objet CONFIG global
+    const sbAdmin = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
     const logs = document.getElementById('logs');
 
-    // NOUVELLE FONCTION CONNEXION
     async function loginAdmin() {
         const email = document.getElementById('adminEmail').value;
         const password = document.getElementById('adminPassword').value;
@@ -276,11 +273,9 @@
             if (error) throw error;
             const select = document.getElementById('moduleSelect');
             select.innerHTML = '<option value="">Choisir un Module</option>';
-            data.forEach(m => { select.innerHTML += `<option value="${m.id}">${m.title}</option>`; });
+            data.forEach(m => { select.innerHTML += <option value="${m.id}">${m.title}</option>; });
         } catch(err) { addLog("Erreur modules: " + err.message, "red");}
     }
-
-    // --- ENVOIS FORMULAIRES ---
 
     document.getElementById('formModule').onsubmit = async (e) => {
         e.preventDefault();
@@ -337,7 +332,7 @@
         const data = { session_number: parseInt(raw.session_number), question: raw.question, correct_index: parseInt(raw.correct_index), options: [raw.opt0, raw.opt1, raw.opt2] };
         const { error } = await sbAdmin.from('quiz_questions').insert([data]);
         if (error) addLog("Erreur: Connectez-vous en Admin", "red");
-        else { addLog("Question Quiz ajoutée !", "blue"); e.target.reset(); loadQuestions(); }
+        else { addLog(`Question Quiz ajoutée !`, "blue"); e.target.reset(); loadQuestions(); }
     };
 
     window.onload = () => { addLog("Connexion établie avec le Sanctuaire Supabase."); };

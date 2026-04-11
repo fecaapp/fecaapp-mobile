@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FECAAPP | LIVE ADMIN SUPABASE</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --gold: #FFD700; --green: #00FF85; --red: #ff4d4d; --blue: #00D1FF; --purple: #A855F7; --orange: #FF8A00; --dark: #0A0A0A; --card: #151515; }
+        body { background: var(--dark); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; flex-direction: column; }
+        
+        /* Barre de Sécurité */
+        .admin-auth-bar { background: #1a1a1a; padding: 10px 30px; border-bottom: 1px solid var(--gold); display: flex; gap: 15px; align-items: center; justify-content: center; }
+        .admin-auth-bar input { width: 200px; padding: 8px; background: #000; border: 1px solid #333; color: white; border-radius: 5px; margin: 0; }
+        .btn-auth { padding: 8px 20px; background: var(--gold); color: black; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+
+        .app-content { display: flex; flex: 1; overflow: hidden; }
+
+        /* Sidebar */
+        .sidebar { width: 260px; background: #000; padding: 30px; border-right: 1px solid #222; display: flex; flex-direction: column; }
+        .sidebar h1 { color: var(--gold); font-size: 20px; letter-spacing: 2px; margin-bottom: 5px; }
+        .status-pill { padding: 5px 10px; border-radius: 20px; font-size: 10px; font-weight: bold; margin-bottom: 30px; width: fit-content; }
+        .online { background: rgba(0, 255, 133, 0.1); color: var(--green); border: 1px solid var(--green); }
+        
+        .nav-btn { width: 100%; padding: 15px; margin: 5px 0; background: none; border: 1px solid #222; color: #888; cursor: pointer; text-align: left; border-radius: 8px; transition: 0.3s; }
+        .nav-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(255, 215, 0, 0.05); }
+
+        /* Main Content */
+        main { flex: 1; padding: 50px; overflow-y: auto; }
+        .form-container { max-width: 900px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        
+        input, textarea, select { width: 100%; padding: 15px; margin-bottom: 20px; background: #111; border: 1px solid #333; color: white; border-radius: 10px; box-sizing: border-box; outline: none; }
+        input:focus { border-color: var(--gold); }
+        
+        .btn-submit { width: 100%; padding: 20px; border: none; border-radius: 10px; font-weight: 900; cursor: pointer; font-size: 16px; text-transform: uppercase; transition: 0.3s; }
+        .gold { background: var(--gold); color: black; }
+        .green { background: var(--green); color: black; }
+        .blue { background: var(--blue); color: black; }
+        .purple { background: var(--purple); color: white; }
+        .orange { background: var(--orange); color: black; }
+
+        .q-list { margin-top: 40px; background: #000; border: 1px solid #222; border-radius: 15px; padding: 20px; }
+        .q-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #222; }
+        .q-tag { font-size: 10px; background: var(--blue); color: black; padding: 2px 8px; border-radius: 4px; font-weight: bold; margin-bottom: 5px; display: inline-block; }
+        .btn-delete { background: none; border: 1px solid var(--red); color: var(--red); padding: 5px 12px; border-radius: 6px; cursor: pointer; transition: 0.3s; }
+        
+        .live-log { background: #000; border: 1px solid #222; padding: 15px; border-radius: 10px; font-family: monospace; font-size: 12px; color: #666; height: 150px; overflow-y: auto; margin-top: 30px; }
+        .log-entry { margin-bottom: 5px; border-left: 2px solid var(--gold); padding-left: 10px; }
+        
+        hr { border: 0; border-top: 1px solid #222; margin: 40px 0; }
+    </style>
+</head>
+<body>
+
+<div class="admin-auth-bar">
+    <span style="color:var(--gold); font-size:12px; font-weight:bold;">ACCÈS SÉCURISÉ :</span>
+    <input type="email" id="adminEmail" placeholder="Email Admin">
+    <input type="password" id="adminPassword" placeholder="Mot de passe">
+    <button class="btn-auth" onclick="loginAdmin()">CONNEXION</button>
+    <span id="authStatus" style="font-size:11px; color:#888;">Déconnecté</span>
+</div>
+
+<div class="app-content">
+    <div class="sidebar">
+        <h1>FECA APP</h1>
+        <div id="connection-status" class="status-pill online">SUPABASE CONNECTÉ</div>
+        
+        <button class="nav-btn active" onclick="switchTab('legends', this)">🏆 LÉGENDES</button>
+        <button class="nav-btn" onclick="switchTab('videos', this)">📹 MUSÉE VIDÉO</button>
+        <button class="nav-btn" onclick="switchTab('saga', this)">👑 SAGA DES ROIS</button>
+        <button class="nav-btn" onclick="switchTab('quiz', this)">🦁 DÉFI DES LIONS</button>
+        <button class="nav-btn" onclick="switchTab('edu', this)">💰 ÉDUCATION FIN.</button>
+        
+        <div style="margin-top: auto;">
+            <div class="live-log" id="logs">
+                <div class="log-entry">Système Supabase prêt...</div>
+            </div>
+        </div>
+    </div>
+
+    <main>
+        <div id="section-legends" class="form-container">
+            <h2 style="color: var(--gold)">IMMORTALISER UNE LÉGENDE</h2>
+            <form id="formLegend">
+                <div class="grid">
+                    <input type="text" name="name" placeholder="Nom Complet (ex: Rigobert Song)" required>
+                    <input type="text" name="title" placeholder="Titre honorifique" required>
+                    <input type="text" name="number" placeholder="Numéro de maillot">
+                    <input type="url" name="img_url" placeholder="URL Image (Haute Qualité)" required>
+                </div>
+                <textarea name="biography" rows="4" placeholder="Récit épique du Lion..."></textarea>
+                <input type="text" name="citation" placeholder="Citation célèbre">
+                <div class="grid" style="grid-template-columns: repeat(4, 1fr);">
+                    <input type="number" name="goals" placeholder="Buts">
+                    <input type="number" name="matches" placeholder="Matchs">
+                    <input type="number" name="can_titles" placeholder="CAN">
+                    <input type="number" name="awards_count" placeholder="Awards">
+                </div>
+                <input type="text" name="palmares" placeholder="Palmarès (ex: CAN 2000, Or 2000) - Séparer par virgule">
+                <button type="submit" class="btn-submit gold">AJOUTER AU SANCTUAIRE</button>
+            </form>
+        </div>
+
+        <div id="section-videos" class="form-container" style="display:none;">
+            <h2 style="color: var(--green)">AJOUTER UNE ARCHIVE VIDÉO</h2>
+            <form id="formVideo">
+                <input type="text" name="title" placeholder="Titre de la vidéo" required>
+                <input type="url" name="url" placeholder="Lien direct .mp4 ou Stream" required>
+                <input type="url" name="thumbnail" placeholder="Lien Image Miniature" required>
+                <input type="text" name="duration" placeholder="Durée (ex: 04:20)">
+                <button type="submit" class="btn-submit green">PUBLIER DANS LE MUSÉE</button>
+            </form>
+        </div>
+
+        <div id="section-saga" class="form-container" style="display:none;">
+            <h2 style="color: var(--purple)">PUBLIER UN ÉPISODE DE LA SAGA</h2>
+            <form id="formSaga">
+                <div class="grid">
+                    <input type="text" name="title" placeholder="Titre de l'épisode" required>
+                    <select name="category">
+                        <option value="LÉGENDE">LÉGENDE</option>
+                        <option value="DESTIN">DESTIN</option>
+                        <option value="INTERVIEW">INTERVIEW</option>
+                        <option value="HISTOIRE">HISTOIRE</option>
+                    </select>
+                </div>
+                <input type="url" name="video_url" placeholder="Lien de la vidéo (.mp4)" required>
+                <input type="url" name="thumbnail_url" placeholder="Image de couverture (URL)">
+                <textarea name="description" rows="3" placeholder="Description de l'épisode..."></textarea>
+                <button type="submit" class="btn-submit purple">DIFFUSER LA SAGA</button>
+            </form>
+        </div>
+
+        <div id="section-quiz" class="form-container" style="display:none;">
+            <h2 style="color: var(--blue)">CONFIGURATION DU DÉFI DES LIONS</h2>
+            <form id="formQuiz">
+                <div class="grid">
+                    <select name="session_number" id="quizSessionSelect" required>
+                        <option value="">Choisir la Séance (1-10)</option>
+                        <option value="1">Séance 1 - Lionceau d'Argile</option>
+                        <option value="2">Séance 2</option>
+                        <option value="3">Séance 3 - Guerrier de Bronze</option>
+                    </select>
+                    <input type="number" name="correct_index" placeholder="Index Bonne Réponse (0-2)" min="0" max="2" required>
+                </div>
+                <textarea name="question" rows="3" placeholder="Votre question épique ici..." required></textarea>
+                <div class="grid" style="grid-template-columns: repeat(3, 1fr);">
+                    <input type="text" name="opt0" placeholder="Option A" required>
+                    <input type="text" name="opt1" placeholder="Option B" required>
+                    <input type="text" name="opt2" placeholder="Option C" required>
+                </div>
+                <button type="submit" class="btn-submit blue">ENREGISTRER LA QUESTION</button>
+            </form>
+
+            <div class="q-list">
+                <h3 style="margin-top: 0; color: white; font-size: 14px;">QUESTIONS ENREGISTRÉES</h3>
+                <div id="questionsContainer"></div>
+            </div>
+        </div>
+
+        <div id="section-edu" class="form-container" style="display:none;">
+            <h2 style="color: var(--orange)">CURRICULUM ÉDUCATION FINANCIÈRE</h2>
+            
+            <h3 style="color: #888; font-size: 14px;">1. CRÉER UN NOUVEAU MODULE</h3>
+            <form id="formModule">
+                <div class="grid">
+                    <input type="number" name="order_index" placeholder="Ordre (ex: 1)" required>
+                    <input type="text" name="title" placeholder="Titre du Module (ex: Fondations)" required>
+                </div>
+                <textarea name="description" rows="2" placeholder="Brève description du module..."></textarea>
+                <button type="submit" class="btn-submit orange">CRÉER LE MODULE</button>
+            </form>
+
+            <hr>
+
+            <h3 style="color: #888; font-size: 14px;">2. AJOUTER UN CHAPITRE À UN MODULE</h3>
+            <form id="formChapter">
+                <div class="grid">
+                    <select name="module_id" id="moduleSelect" required>
+                        <option value="">Chargement des modules...</option>
+                    </select>
+                    <input type="number" name="order_index" placeholder="Ordre du chapitre (1, 2...)" required>
+                </div>
+                <input type="text" name="title" placeholder="Titre du Chapitre" required>
+                <input type="url" name="video_url" placeholder="URL Vidéo du cours (Optionnel)">
+                <input type="url" name="image_url" placeholder="Image d'illustration (URL)">
+                <textarea name="content" rows="6" placeholder="Contenu textuel détaillé du chapitre..."></textarea>
+                <button type="submit" class="btn-submit gold">AJOUTER LE CHAPITRE</button>
+            </form>
+        </div>
+    </main>
+</div>
+
+<script>
+    const SUPABASE_URL = "https://xmbuqisqmxigdcuivdjc.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtYnVxaXNxbXhpZ2RjdWl2ZGpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5ODkzNDEsImV4cCI6MjA4MTU2NTM0MX0.QZS1y1gwQnTWIFsWw2Jw9NoNL6j0vgUmufjwul88T3g";
+    
+    const sbAdmin = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const logs = document.getElementById('logs');
+
+    // NOUVELLE FONCTION CONNEXION
+    async function loginAdmin() {
+        const email = document.getElementById('adminEmail').value;
+        const password = document.getElementById('adminPassword').value;
+        const status = document.getElementById('authStatus');
+
+        const { data, error } = await sbAdmin.auth.signInWithPassword({ email, password });
+
+        if (error) {
+            status.innerText = "❌ Erreur";
+            addLog("Connexion échouée : " + error.message, "red");
+        } else {
+            status.innerText = "✅ Connecté : " + email;
+            status.style.color = "var(--green)";
+            addLog("Session Admin activée.", "green");
+            loadQuestions();
+            loadModulesForSelect();
+        }
+    }
+
+    function addLog(msg, type = "gold") {
+        const div = document.createElement('div');
+        div.className = 'log-entry';
+        div.style.borderLeftColor = `var(--${type})`;
+        div.innerText = `${new Date().toLocaleTimeString()}] ${msg}`;
+        logs.prepend(div);
+    }
+
+    function switchTab(tab, btn) {
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('section-legends').style.display = tab === 'legends' ? 'block' : 'none';
+        document.getElementById('section-videos').style.display = tab === 'videos' ? 'block' : 'none';
+        document.getElementById('section-quiz').style.display = tab === 'quiz' ? 'block' : 'none';
+        document.getElementById('section-saga').style.display = tab === 'saga' ? 'block' : 'none';
+        document.getElementById('section-edu').style.display = tab === 'edu' ? 'block' : 'none';
+        if(tab === 'edu') loadModulesForSelect();
+        if(tab === 'quiz') loadQuestions();
+    }
+
+    async function loadQuestions() {
+        try {
+            const { data, error } = await sbAdmin.from('quiz_questions').select('*').order('created_at', { ascending: false });
+            if (error) throw error;
+            const container = document.getElementById('questionsContainer');
+            container.innerHTML = data.length === 0 ? '<p style="color:#444">Aucune question enregistrée.</p>' : '';
+            data.forEach(q => {
+                const item = document.createElement('div');
+                item.className = 'q-item';
+                item.innerHTML = `
+                    <div class="q-info">
+                        <span class="q-tag">SÉANCE ${q.session_number}</span>
+                        <div style="font-size: 13px;">${q.question}</div>
+                    </div>
+                    <button class="btn-delete" onclick="deleteItem('quiz_questions', '${q.id}')">SUPPRIMER</button>
+                `;
+                container.appendChild(item);
+            });
+        } catch (err) { addLog("Erreur chargement: " + err.message, "red"); }
+    }
+
+    async function deleteItem(table, id) {
+        if(!confirm("Supprimer cet élément ? Vérifiez votre connexion Admin.")) return;
+        try {
+            const { error } = await sbAdmin.from(table).delete().eq('id', id);
+            if (error) throw error;
+            addLog(`Supprimé de ${table}`, "red");
+            if(table === 'quiz_questions') loadQuestions();
+        } catch(err) { addLog("Vérifiez votre connexion admin.", "red"); }
+    }
+
+    async function loadModulesForSelect() {
+        try {
+            const { data, error } = await sbAdmin.from('modules').select('id, title').order('order_index');
+            if (error) throw error;
+            const select = document.getElementById('moduleSelect');
+            select.innerHTML = '<option value="">Choisir un Module</option>';
+            data.forEach(m => { select.innerHTML += `<option value="${m.id}">${m.title}</option>`; });
+        } catch(err) { addLog("Erreur modules: " + err.message, "red");}
+    }
+
+    // --- ENVOIS FORMULAIRES ---
+
+    document.getElementById('formModule').onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const data = Object.fromEntries(fd.entries());
+        data.order_index = parseInt(data.order_index);
+        const { error } = await sbAdmin.from('modules').insert([data]);
+        if (error) addLog("Erreur: Connectez-vous en Admin", "red");
+        else { addLog(`Module "${data.title}" créé !`, "orange"); e.target.reset(); loadModulesForSelect(); }
+    };
+
+    document.getElementById('formChapter').onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const data = Object.fromEntries(fd.entries());
+        data.order_index = parseInt(data.order_index);
+        const { error } = await sbAdmin.from('chapters').insert([data]);
+        if (error) addLog("Erreur: Connectez-vous en Admin", "red");
+        else { addLog(`Chapitre "${data.title}" ajouté !`, "gold"); e.target.reset(); }
+    };
+
+    document.getElementById('formLegend').onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const data = Object.fromEntries(fd.entries());
+        data.palmares = data.palmares ? data.palmares.split(',').map(s => s.trim()) : [];
+        const { error } = await sbAdmin.from('legends').insert([data]);
+        if (error) addLog("Erreur: Connectez-vous en Admin", "red");
+        else { addLog(`Légende "${data.name}" immortalisée !`, "gold"); e.target.reset(); }
+    };
+
+    document.getElementById('formVideo').onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const data = Object.fromEntries(fd.entries());
+        const { error } = await sbAdmin.from('museum_videos').insert([data]);
+        if (error) addLog("Erreur: Connectez-vous en Admin", "red");
+        else { addLog(`Vidéo "${data.title}" publiée !`, "green"); e.target.reset(); }
+    };
+
+    document.getElementById('formSaga').onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const data = Object.fromEntries(fd.entries());
+        const { error } = await sbAdmin.from('saga_kings').insert([data]);
+        if (error) addLog("Erreur: Connectez-vous en Admin", "red");
+        else { addLog(`Saga "${data.title}" ajoutée !`, "purple"); e.target.reset(); }
+    };
+
+    document.getElementById('formQuiz').onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const raw = Object.fromEntries(fd.entries());
+        const data = { session_number: parseInt(raw.session_number), question: raw.question, correct_index: parseInt(raw.correct_index), options: [raw.opt0, raw.opt1, raw.opt2] };
+        const { error } = await sbAdmin.from('quiz_questions').insert([data]);
+        if (error) addLog("Erreur: Connectez-vous en Admin", "red");
+        else { addLog("Question Quiz ajoutée !", "blue"); e.target.reset(); loadQuestions(); }
+    };
+
+    window.onload = () => { addLog("Connexion établie avec le Sanctuaire Supabase."); };
+</script>
+</body>
+</html>

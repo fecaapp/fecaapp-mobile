@@ -1,0 +1,194 @@
+/* ==========================================================================
+   VARIABLES & POLICES
+   ========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Inter:wght@300;600&display=swap');
+
+:root { 
+    --basket-green: #00FF85; /* Couleur Néon FECAAPP */
+    --basket-orange: #FFA500; 
+    --bg: #050505; 
+    --card: #0D0D0D; 
+    --input-bg: #000000;
+}
+
+/* ==========================================================================
+   RESET & STRUCTURE FIXE
+   ========================================================================== */
+* { box-sizing: border-box; }
+
+body { 
+    background: var(--bg); 
+    color: white; 
+    font-family: 'Inter', sans-serif; 
+    margin: 0; 
+    padding: 10px 20px; 
+    height: 100vh; 
+    overflow: hidden; /* Empêche le scroll de la page entière */
+}
+
+/* ==========================================================================
+   HEADER & LAYOUT PRINCIPAL
+   ========================================================================== */
+.header {
+    height: 60px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #222;
+    margin-bottom: 15px;
+}
+
+.logo-area h1 {
+    font-family: 'Orbitron';
+    font-size: 18px;
+    margin: 0;
+    letter-spacing: 2px;
+}
+
+.main-layout { 
+    display: grid; 
+    grid-template-columns: 380px 1fr; 
+    gap: 20px; 
+    height: calc(100vh - 120px); /* Hauteur dynamique pour tenir sur l'écran */
+}
+
+/* ==========================================================================
+   SIDE PANEL (SCROLL INTERNE POUR NE RIEN COUPER)
+   ========================================================================== */
+.side-panel { 
+    height: 100%; 
+    overflow-y: auto; /* Autorise le scroll si le formulaire est long */
+    padding-right: 10px; 
+    scrollbar-width: thin;
+    scrollbar-color: var(--basket-green) #111;
+}
+
+#regieContainer { 
+    height: 100%; 
+    overflow-y: auto; 
+    padding-right: 5px;
+}
+
+/* ==========================================================================
+   DESIGN DES COMPOSANTS (CARTES)
+   ========================================================================== */
+.side-card { 
+    background: var(--card); 
+    border: 1px solid #1a1a1a; 
+    padding: 20px; 
+    border-radius: 12px;
+    margin-bottom: 15px;
+}
+
+.blue-border { border-top: 3px solid #00A3FF; }
+.yellow-border { border-top: 3px solid #FFD600; }
+.green-border { border-top: 3px solid var(--basket-green); }
+
+.side-card h3 {
+    margin: 0 0 15px 0;
+    font-family: 'Orbitron';
+    font-size: 12px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* ==========================================================================
+   FORMULAIRES & BOUTONS
+   ========================================================================== */
+label {
+    display: block;
+    font-size: 9px;
+    font-weight: 700;
+    color: #666;
+    text-transform: uppercase;
+    margin: 10px 0 5px 0;
+}
+
+input, select { 
+    background: var(--input-bg); 
+    border: 1px solid #222; 
+    color: white; 
+    padding: 10px; 
+    border-radius: 6px; 
+    width: 100%; 
+    font-size: 12px;
+    font-family: 'Inter';
+}
+
+input:focus {
+    border-color: var(--basket-green);
+    outline: none;
+}
+
+.btn { 
+    padding: 12px; 
+    border: none; 
+    border-radius: 6px; 
+    cursor: pointer; 
+    font-weight: 900; 
+    font-size: 10px; 
+    text-transform: uppercase; 
+    font-family: 'Orbitron';
+    margin-top: 15px;
+    transition: 0.3s;
+}
+
+.btn-blue { background: #00A3FF; color: white; }
+.btn-yellow { background: #FFD600; color: black; }
+.btn-green { background: var(--basket-green); color: black; }
+.btn-red { background: #FF3131; color: white; }
+.full-width { width: 100%; }
+
+/* ==========================================================================
+   ZONE RÉGIE (MATCH EN DIRECT)
+   ========================================================================== */
+.match-card { 
+    background: #000; 
+    border-radius: 15px; 
+    padding: 25px; 
+    border: 1px solid #1a1a1a; 
+    margin-bottom: 20px;
+}
+
+.score-row { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    background: #080808;
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid #111;
+}
+
+.team-box { text-align: center; flex: 1; }
+.team-box span { display: block; font-size: 12px; font-weight: 800; margin-bottom: 10px; }
+
+.score-num { 
+    font-family: 'Orbitron'; 
+    font-size: 60px; 
+    font-weight: 900; 
+    color: var(--basket-green); 
+    text-shadow: 0 0 20px rgba(0, 255, 133, 0.3);
+}
+
+.timer-display { 
+    font-family: 'Orbitron'; 
+    font-size: 40px; 
+    color: #fff;
+    margin-bottom: 10px;
+}
+
+/* ==========================================================================
+   SCROLLBAR PERSONNALISÉE
+   ========================================================================== */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { 
+    background: #222; 
+    border-radius: 10px; 
+}
+::-webkit-scrollbar-thumb:hover { 
+    background: var(--basket-green); 
+}

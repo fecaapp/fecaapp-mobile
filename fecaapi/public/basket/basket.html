@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FECAAPP - BASKET COMMAND v6.0 PRO</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Orbitron:wght@400;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="script.js" defer></script>
+    
+    <style>
+        .admin-security-lock {
+            background: #000;
+            border-bottom: 2px solid #00FF85;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px;
+        }
+        .admin-security-lock input {
+            background: #111;
+            border: 1px solid #333;
+            color: #00FF85;
+            padding: 5px 10px;
+            border-radius: 4px;
+            outline: none;
+        }
+        .admin-security-lock button {
+            background: #00FF85;
+            color: #000;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .side-panel {
+            height: calc(100vh - 80px);
+            overflow-y: auto;
+            padding-bottom: 80px;
+            scrollbar-width: thin;
+            scrollbar-color: #00FF85 #111;
+        }
+        
+        .feca-badge { background: #00FF85; color: black; }
+        #auth-msg { margin-left: 10px; font-weight: bold; font-size: 10px; }
+
+        /* Animation pour le signal connecté */
+        .blink-animation {
+            animation: blinker 1.5s linear infinite;
+        }
+        @keyframes blinker {
+            50% { opacity: 0.3; }
+        }
+
+        /* NOUVEAUX STYLES POUR BOUTONS DE SCORE RAPIDE */
+        .quick-score-btns {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        .btn-score {
+            border: none;
+            padding: 5px 10px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: 0.2s;
+        }
+        .btn-score:active { transform: scale(0.9); }
+        .btn-a { background: #00FF85; color: #000; }
+        .btn-b { background: #FFF; color: #000; }
+    </style>
+</head>
+<body>
+
+<div class="admin-security-lock">
+    <span style="color: #00FF85;">[ SÉCURITÉ ADMIN BASKET ]</span>
+    <input type="email" id="admin-email" placeholder="Email Command">
+    <input type="password" id="admin-password" placeholder="Clé d'accès">
+    <button onclick="loginAdmin()">DÉVERROUILLER</button>
+    <span id="auth-msg" style="color: #666;">SYSTÈME VERROUILLÉ</span>
+</div>
+
+<div class="header">
+    <div class="logo-area">
+        <div class="feca-badge">PRO</div>
+        <h1>FECAAPP BASKET COMMAND v6.0</h1>
+    </div>
+    <div id="status-io" style="color: #FF3131; font-weight: bold;">📡 SIGNAL LIVE BASKET DÉCONNECTÉ</div>
+</div>
+
+<div class="main-layout">
+    <div class="side-panel">
+        
+        <div class="match-card side-card blue-border">
+            <h3><span class="icon">🏀</span> RÉGIE DIRECTE</h3>
+            <label for="matchSelector">Match à piloter</label>
+            <select id="matchSelector">
+                <option value="">Chargement...</option>
+            </select>
+            <button class="btn btn-blue full-width" onclick="addMatchToRegie()">LANCER LA RÉGIE</button>
+        </div>
+        
+        <div class="match-card side-card yellow-border">
+            <h3><span class="icon">📊</span> CLASSEMENT</h3>
+            <label>Nom de la Ligue</label>
+            <input type="text" id="configLeagueName" placeholder="Ex: ELITE BASKET">
+            <label>Nom du Club</label>
+            <input type="text" id="configTeamName" placeholder="Nom du Club">
+            <label>URL Logo Club</label>
+            <input type="text" id="configTeamLogo" placeholder="https://...">
+            <button class="btn btn-yellow full-width black-text" onclick="addTeamToStandings()">AJOUTER AU CLASSEMENT</button>
+        </div>
+
+        <div class="match-card side-card green-border">
+            <h3><span class="icon">📅</span> PROGRAMMATION</h3>
+            <label>Ligue</label>
+            <input type="text" id="setupLeague" placeholder="Ex: ELITE BASKET">
+            
+            <label>URL Logo Ligue</label>
+            <input type="text" id="setupLeagueLogo" placeholder="https://...">
+            
+            <label>Journée / Salle</label>
+            <input type="text" id="setupJournee" placeholder="Ex: J1">
+            <input type="text" id="setupStadium" placeholder="Nom du Gymnase">
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                <div>
+                    <label>Date Match</label>
+                    <input type="date" id="setupDate" style="width:100%; background:#111; border:1px solid #333; color:white; padding:8px;">
+                </div>
+                <div>
+                    <label>Heure Début</label>
+                    <input type="time" id="setupTime" style="width:100%; background:#111; border:1px solid #333; color:white; padding:8px;">
+                </div>
+            </div>
+            
+            <div class="setup-teams-grid" style="margin-top:15px;">
+                <div>
+                    <label>Équipe A</label>
+                    <input type="text" id="setupA" placeholder="Nom A">
+                    <input type="text" id="logoA" placeholder="URL Logo A">
+                </div>
+                <div style="color:#00FF85; font-weight:900; align-self:center;">VS</div>
+                <div>
+                    <label>Équipe B</label>
+                    <input type="text" id="setupB" placeholder="Nom B">
+                    <input type="text" id="logoB" placeholder="URL Logo B">
+                </div>
+            </div>
+            
+            <button class="btn btn-green full-width" onclick="createNewMatch()" style="margin-top:15px;">ENREGISTRER MATCH BASKET</button>
+        </div>
+    </div>
+    
+    <div id="regieContainer" class="regie-main-area"></div>
+</div>
+
+</body>
+</html>

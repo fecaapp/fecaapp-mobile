@@ -1,0 +1,407 @@
+// ==========================================
+// CONFIGURATION GÉNÉRALE
+// ==========================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// 1. SYSTÈME UTILISATEURS ET TALENTS
+// ==========================================
+
+model users {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email          String          @unique
+  full_name      String          
+  img_url        String?         
+  cover_url      String?         // Photo de couverture de profil
+  bio            String?         @db.Text 
+  role           String          @default("USER")
+  is_certified   Boolean         @default(false) 
+  password       String
+  
+  // Champs pour les statistiques sociales
+  followers_count Int            @default(0)
+  following_count Int            @default(0)
+
+  is_online      Boolean         @default(false)
+  last_seen      DateTime        @default(now()) @db.Timestamptz(6)
+  
+  created_at     DateTime        @default(now()) @db.Timestamptz(6)
+  
+  certifications certifications[]
+  talents        talents[]
+  quizProgress   UserQuizProgress?
+  
+  // Relations Messagerie
+  sentMessages     Message[]     @relation("SentMessages")
+  receivedMessages Message[]     @relation("ReceivedMessages")
+  groups           GroupMember[]
+
+  // Relations Sociales
+  posts          Post[]
+  comments       Comment[]
+  likes          Like[]
+  statuses       Status[]
+  statusViews    StatusView[]
+  
+  // Relations de suivi (Follow)
+  followers      Follow[]        @relation("UserFollowing")
+  following      Follow[]        @relation("UserFollowers")
+
+  @@map("users")
+}
+
+model certifications {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id            String?   @db.Uuid
+  proof_document_url String    
+  status             String?   @default("pending")
+  submitted_at       DateTime? @default(now()) @db.Timestamptz(6)
+  reviewed_at        DateTime? @db.Timestamptz(6)
+  diploma_type       String?   
+  institution        String?
+  
+  user               users?     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("certifications")
+}
+
+model talents {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  video_url   String   
+  category    String
+  specialty   String?
+  city        String?
+  is_active   Boolean  @default(true) 
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  user_id     String   @db.Uuid
+  
+  user        users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("talents")
+}
+
+// ==========================================
+// 2. SYSTÈME MATCHS ET COMPÉTITIONS
+// ==========================================
+
+model League {
+  id        String     @id @default(uuid())
+  name      String     @unique 
+  logo      String?
+  gender    String     @default("Masculin")
+  matches   Match[]
+  standings Standing[] 
+
+  @@map("leagues")
+}
+
+model Match {
+  id            String   @id @default(uuid())
+  team1Name     String
+  team1Logo     String?
+  team2Name     String
+  team2Logo     String?
+  score1        Int      @default(0)
+  score2        Int      @default(0)
+  time          String   @default("00:00") 
+  extraTime     String   @default("0")
+  isTimerActive Boolean  @default(false) 
+  status        String   @default("À VENIR") 
+  journee       String?  @default("CHAMPIONNAT") 
+  stadium       String?  @default("Stade non défini")
+  isLocked      Boolean  @default(false) 
+
+  officialsMain       String?
+  officialsAssistants String?
+  
+  stats         Json?    
+  pen1          Json?    
+  pen2          Json?    
+  positions     Json?    
+
+  lineup1       Json?    
+  lineup2       Json?    
+  subs1         String?  @db.Text 
+  subs2         String?  @db.Text
+  hurt1         String?  @db.Text 
+  hurt2         String?  @db.Text 
+  
+  coach1        String?
+  coach2        String?
+  formation1    String?  @default("4-4-2")
+  formation2    String?  @default("4-4-2")
+  
+  startTime     DateTime? @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  leagueId      String
+  league        League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  events        Event[]
+
+  @@index([leagueId])
+  @@index([startTime])
+  @@map("matches")
+}
+
+model Event {
+  id      String  @id @default(uuid())
+  type    String  
+  message String? 
+  time    String?
+  team    String? 
+  player  String?
+  assist  String?
+  matchId String
+  match   Match   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId])
+  @@map("events")
+}
+
+model Standing {
+  id           String   @id @default(uuid())
+  teamName     String
+  teamLogo     String?
+  played       Int      @default(0) 
+  won          Int      @default(0) 
+  drawn        Int      @default(0) 
+  lost         Int      @default(0)
+  goalsFor     Int      @default(0) 
+  goalsAgainst Int      @default(0) 
+  goalDiff     Int      @default(0) 
+  points       Int      @default(0) 
+  history      Json?    
+  
+  leagueId     String
+  league       League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  @@unique([teamName, leagueId])
+  @@map("standings")
+}
+
+// ==========================================
+// 3. PATRIMOINE : LÉGENDES ET MUSÉE
+// ==========================================
+
+model Legend {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  number      String   @default("10")
+  title       String   
+  imgUrl      String   @map("img_url")
+  biography   String   @db.Text
+  citation    String   @default("L'impossible n'est pas camerounais.")
+  goals       Int      @default(0)
+  matches     Int      @default(0)
+  canTitles   Int      @default(0) @map("can_titles")
+  awardsCount Int      @default(0) @map("awards_count")
+  palmares    Json     
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("legends")
+}
+
+model MuseumVideo {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title     String
+  url       String   
+  thumbnail String   
+  duration  String   @default("00:00")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("museum_videos")
+}
+
+// ==========================================
+// 4. SYSTÈME DÉFI DES LIONS (GAMIFICATION)
+// ==========================================
+
+model QuizQuestion {
+  id            String   @id @default(uuid())
+  sessionNumber Int      
+  question      String   @db.Text
+  options       Json     
+  correctIndex  Int      
+  createdAt     DateTime @default(now())
+
+  @@map("quiz_questions")
+}
+
+model UserQuizProgress {
+  id                String    @id @default(uuid())
+  userId            String    @unique @db.Uuid
+  currentSession    Int       @default(1)    
+  lastSuccessDate   DateTime?                
+  unlockedUntil     DateTime?                
+  badgeType         String    @default("NONE") 
+  isFinalLevel      Boolean   @default(false)  
+  
+  user              users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_quiz_progress")
+}
+
+// ==========================================
+// 5. MESSAGERIE AVANCÉE
+// ==========================================
+
+model Group {
+  id          String   @id @default(uuid())
+  name        String
+  type        String   @default("Match") 
+  description String?  @db.Text
+  image       String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  
+  members     GroupMember[]
+  messages    Message[]
+
+  @@map("groups")
+}
+
+model GroupMember {
+  id        String   @id @default(uuid())
+  userId    String   @db.Uuid
+  groupId   String
+  role      String   @default("MEMBER") 
+  joinedAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  user      users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+  @@map("group_members")
+}
+
+model Message {
+  id          String   @id @default(uuid())
+  content     String?  @db.Text
+  mediaUrl    String?
+  type        String   @default("TEXT") 
+  duration    String?  
+  senderBadge String   @default("LIONCEAU") 
+  
+  status      String   @default("SENT") 
+  isEdited    Boolean  @default(false)
+  
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6) 
+
+  senderId    String   @db.Uuid
+  receiverId  String?  @db.Uuid 
+  groupId     String?
+
+  sender      users    @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    users?   @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  group       Group?   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+// ==========================================
+// 6. SYSTÈME SOCIAL : POSTS, LIKES, COMMENTS
+// ==========================================
+
+model Post {
+  id          String     @id @default(uuid())
+  content     String?    @db.Text
+  mediaUrl    String?
+  type        String     @default("IMAGE") 
+  createdAt   DateTime   @default(now()) @db.Timestamptz(6)
+  
+  authorId    String     @db.Uuid
+  author      users      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  
+  likes       Like[]
+  comments    Comment[]
+  
+  @@map("posts")
+}
+
+model Comment {
+  id          String     @id @default(uuid())
+  content     String     @db.Text
+  createdAt   DateTime   @default(now()) @db.Timestamptz(6)
+  
+  authorId    String     @db.Uuid
+  author      users      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  
+  postId      String
+  post        Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  parentId    String?    
+  parent      Comment?   @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     Comment[]  @relation("CommentReplies")
+
+  @@map("comments")
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  userId    String   @db.Uuid
+  
+  postId    String?
+  commentId String?
+  createdAt DateTime @default(now())
+
+  user      users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, postId]) 
+  @@map("likes")
+}
+
+// ==========================================
+// 7. SYSTÈME DE STATUTS (STORIES)
+// ==========================================
+
+model Status {
+  id         String    @id @default(uuid())
+  mediaUrl   String
+  type       String    @default("IMAGE")
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
+  expiresAt  DateTime  
+  
+  authorId   String    @db.Uuid
+  author     users     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  
+  viewers    StatusView[]
+
+  @@map("statuses")
+}
+
+model StatusView {
+  id        String   @id @default(uuid())
+  userId    String   @db.Uuid
+  statusId  String
+  viewedAt  DateTime @default(now())
+
+  status    Status   @relation(fields: [statusId], references: [id], onDelete: Cascade)
+  user      users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, statusId])
+  @@map("status_views")
+}
+
+// ==========================================
+// 8. SYSTÈME D'ABONNÉS (FOLLOW)
+// ==========================================
+
+model Follow {
+  followerId  String @db.Uuid
+  followingId String @db.Uuid
+
+  follower    users  @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following   users  @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@map("follows")
+}

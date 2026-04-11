@@ -1,0 +1,216 @@
+/* ==========================================================================
+   VARIABLES & POLICES (ADAPTATION HANDBALL)
+   ========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Inter:wght@300;600&display=swap');
+
+:root { 
+    --hand-red: #FF3131;    /* Rouge Impact FECAAPP Hand */
+    --hand-orange: #FF9800; /* Exclusions 2 min */
+    --hand-yellow: #FFEB3B; /* Cartons Jaunes */
+    --bg: #050505; 
+    --card: #0D0D0D; 
+    --input-bg: #000000;
+}
+
+/* ==========================================================================
+   RESET & STRUCTURE FIXE
+   ========================================================================== */
+* { box-sizing: border-box; }
+
+body { 
+    background: var(--bg); 
+    color: white; 
+    font-family: 'Inter', sans-serif; 
+    margin: 0; 
+    padding: 0; /* Modifié pour coller à la barre de sécurité */
+    height: 100vh; 
+    overflow: hidden; 
+}
+
+/* ==========================================================================
+   HEADER & LAYOUT PRINCIPAL
+   ========================================================================== */
+.header {
+    height: 60px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #222;
+    padding: 0 20px;
+}
+
+.logo-area { display: flex; align-items: center; gap: 15px; }
+
+.logo-area h1 {
+    font-family: 'Orbitron';
+    font-size: 16px;
+    margin: 0;
+    letter-spacing: 2px;
+}
+
+.main-layout { 
+    display: grid; 
+    grid-template-columns: 380px 1fr; 
+    gap: 20px; 
+    height: calc(100vh - 110px); 
+    padding: 20px;
+}
+
+/* ==========================================================================
+   SIDE PANEL (SCROLL INTERNE)
+   ========================================================================== */
+.side-panel { 
+    height: 100%; 
+    overflow-y: auto; 
+    padding-right: 10px; 
+    scrollbar-width: thin;
+    scrollbar-color: var(--hand-red) #111;
+}
+
+#regieContainer { 
+    height: 100%; 
+    overflow-y: auto; 
+    padding-right: 5px;
+}
+
+/* ==========================================================================
+   DESIGN DES COMPOSANTS (CARTES)
+   ========================================================================== */
+.side-card { 
+    background: var(--card); 
+    border: 1px solid #1a1a1a; 
+    padding: 20px; 
+    border-radius: 12px;
+    margin-bottom: 15px;
+}
+
+.blue-border { border-top: 3px solid #00A3FF; }
+.yellow-border { border-top: 3px solid #FFD600; }
+.green-border { border-top: 3px solid #00FF85; }
+.red-border { border-top: 3px solid var(--hand-red); }
+
+.side-card h3 {
+    margin: 0 0 15px 0;
+    font-family: 'Orbitron';
+    font-size: 11px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* ==========================================================================
+   FORMULAIRES & BOUTONS
+   ========================================================================== */
+label {
+    display: block;
+    font-size: 9px;
+    font-weight: 700;
+    color: #555;
+    text-transform: uppercase;
+    margin: 10px 0 5px 0;
+}
+
+input, select, textarea { 
+    background: var(--input-bg); 
+    border: 1px solid #222; 
+    color: white; 
+    padding: 10px; 
+    border-radius: 6px; 
+    width: 100%; 
+    font-size: 12px;
+    font-family: 'Inter';
+    transition: 0.2s;
+}
+
+input:focus { border-color: var(--hand-red); outline: none; }
+
+.btn { 
+    padding: 12px; 
+    border: none; 
+    border-radius: 6px; 
+    cursor: pointer; 
+    font-weight: 900; 
+    font-size: 10px; 
+    text-transform: uppercase; 
+    font-family: 'Orbitron';
+    margin-top: 10px;
+    transition: 0.3s;
+}
+
+.btn-blue { background: #00A3FF; color: white; }
+.btn-yellow { background: #FFD600; color: black; }
+.btn-green { background: #00FF85; color: black; }
+.btn-red { background: var(--hand-red); color: white; }
+.btn-dark { background: #1a1a1a; color: white; border: 1px solid #333; }
+.full-width { width: 100%; }
+
+.btn:hover { filter: brightness(1.2); transform: translateY(-1px); }
+.btn:active { transform: translateY(1px); }
+
+/* ==========================================================================
+   ZONE RÉGIE HANDBALL (PILOTAGE DIRECT)
+   ========================================================================== */
+.match-card { 
+    background: #000; 
+    border-radius: 15px; 
+    padding: 25px; 
+    border: 1px solid #1a1a1a; 
+    margin-bottom: 20px;
+}
+
+/* Boutons Sanctions Spécifiques */
+.hand-penalty-btns {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    margin-top: 10px;
+}
+
+.btn-penalty {
+    border: none;
+    padding: 6px;
+    font-family: 'Orbitron';
+    font-size: 9px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 4px;
+    text-align: center;
+    transition: 0.2s;
+}
+
+.btn-2min { background: var(--hand-orange); color: #000; }
+.btn-yellow-card { background: var(--hand-yellow); color: #000; }
+.btn-red-card { background: var(--hand-red); color: #FFF; }
+
+.score-num { 
+    font-family: 'Orbitron'; 
+    font-size: 55px; 
+    font-weight: 900; 
+    color: var(--hand-red); 
+    text-shadow: 0 0 15px rgba(255, 49, 49, 0.2);
+}
+
+.timer-display { 
+    font-family: 'Orbitron'; 
+    font-size: 38px; 
+    color: #fff;
+    margin: 10px 0;
+}
+
+/* Animation Live */
+.blink-animation { animation: blinker 1.5s linear infinite; }
+@keyframes blinker { 50% { opacity: 0.3; } }
+
+/* ==========================================================================
+   SCROLLBAR PERSONNALISÉE
+   ========================================================================== */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { 
+    background: #222; 
+    border-radius: 10px; 
+}
+::-webkit-scrollbar-thumb:hover { 
+    background: var(--hand-red); 
+}

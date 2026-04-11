@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FECAAPP - HANDBALL COMMAND v1.0 PRO</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Orbitron:wght@400;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="script.js" defer></script>
+    
+    <style>
+        .admin-security-lock {
+            background: #000; border-bottom: 2px solid #FF3131; padding: 10px 20px;
+            display: flex; justify-content: center; align-items: center; gap: 15px;
+            font-family: 'Orbitron', sans-serif; font-size: 11px; z-index: 1000;
+        }
+        .admin-security-lock input { background: #111; border: 1px solid #333; color: #FF3131; padding: 5px 10px; border-radius: 4px; outline: none; }
+        .admin-security-lock button { background: #FF3131; color: #FFF; border: none; padding: 5px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        
+        .main-layout { display: grid; grid-template-columns: 380px 1fr; gap: 20px; height: calc(100vh - 120px); padding: 20px; }
+        .side-panel { height: calc(100vh - 80px); overflow-y: auto; padding-bottom: 80px; scrollbar-width: thin; scrollbar-color: #FF3131 #111; }
+        .setup-teams-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 15px; align-items: center; }
+        .feca-badge { background: #FF3131; color: white; padding: 2px 8px; font-weight: 900; }
+        .blink-animation { animation: blinker 1.5s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0.3; } }
+
+        .hand-penalty-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 10px; }
+        .btn-penalty { border: none; padding: 4px; font-size: 9px; font-weight: bold; cursor: pointer; border-radius: 3px; text-align: center; }
+        .btn-2min { background: #FF9800; color: #000; } 
+        .btn-red { background: #FF3131; color: #FFF; }
+        .btn-yellow { background: #FFEB3B; color: #000; }
+    </style>
+</head>
+<body>
+
+<div class="admin-security-lock">
+    <span style="color: #FF3131;">[ SÉCURITÉ ADMIN HANDBALL ]</span>
+    <input type="email" id="admin-email" placeholder="Email Command">
+    <input type="password" id="admin-password" placeholder="Clé d'accès">
+    <button onclick="loginAdmin()">DÉVERROUILLER</button>
+    <span id="auth-msg" style="color: #666;">SYSTÈME VERROUILLÉ</span>
+</div>
+
+<div class="header" style="padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222;">
+    <div class="logo-area" style="display: flex; align-items: center; gap: 15px;">
+        <div class="feca-badge">HAND PRO</div>
+        <h1 style="margin: 0; font-family: 'Orbitron'; font-size: 18px;">FECAAPP HANDBALL COMMAND</h1>
+    </div>
+    <div id="status-io" style="color: #666; font-weight: bold; font-family: 'Orbitron'; font-size: 12px;">📡 SIGNAL LIVE ATTENTE CONNEXION</div>
+</div>
+
+<div class="main-layout">
+    <div class="side-panel">
+        <div class="match-card side-card blue-border">
+            <h3>🤾‍♂️ RÉGIE DIRECTE</h3>
+            <select id="matchSelector"><option value="">Chargement...</option></select>
+            <button class="btn btn-blue full-width" onclick="addMatchToRegie()">ACTIVER LA RÉGIE</button>
+        </div>
+        
+        <div class="match-card side-card yellow-border">
+            <h3>📈 CLASSEMENT HAND</h3>
+            <input type="text" id="configLeagueName" placeholder="Nom de la Ligue">
+            <input type="text" id="configTeamName" placeholder="Nom du Club">
+            <input type="text" id="configTeamLogo" placeholder="URL Logo">
+            <button class="btn btn-yellow full-width black-text" id="btnAddStandings" onclick="addTeamToStandings()">ENREGISTRER AU CLASSEMENT</button>
+        </div>
+
+        <div class="match-card side-card green-border">
+            <h3>📅 NOUVEAU MATCH</h3>
+            <input type="text" id="setupLeague" placeholder="Compétition (ID Ligue)">
+            <input type="text" id="setupDay" placeholder="Journée (ex: J1)">
+            <input type="date" id="setupDate" style="width: 100%; margin-bottom: 10px; background: #111; border: 1px solid #333; color: white; padding: 8px;">
+            <input type="text" id="setupTime" placeholder="Heure (ex: 15:30)">
+            <input type="text" id="setupStadium" placeholder="Lieu/Palais des Sports">
+            
+            <div class="setup-teams-grid">
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <input type="text" id="setupA" placeholder="Équipe A">
+                    <input type="text" id="setupALogo" placeholder="URL Logo A">
+                </div>
+                <div style="color:#FF3131; font-weight:900;">VS</div>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <input type="text" id="setupB" placeholder="Équipe B">
+                    <input type="text" id="setupBLogo" placeholder="URL Logo B">
+                </div>
+            </div>
+            
+            <button class="btn btn-green full-width" onclick="createNewMatch()" style="margin-top:10px;">CRÉER MATCH HANDBALL</button>
+        </div>
+    </div>
+    
+    <div id="regieContainer" class="regie-main-area" style="overflow-y: auto;">
+        <div style="display: flex; height: 100%; align-items: center; justify-content: center; color: #333; flex-direction: column; opacity: 0.5;">
+            <span style="font-size: 50px;">🤾‍♂️</span>
+            <p>SÉLECTIONNEZ UN MATCH POUR PILOTER</p>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

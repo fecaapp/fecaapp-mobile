@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FECAAPP - ELITE COMMAND v5.2 PRO</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Orbitron:wght@400;900&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        /* Style additionnel pour la barre de sécurité Admin */
+        .admin-security-lock {
+            background: #000;
+            border-bottom: 2px solid #00D1FF;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px;
+        }
+        .admin-security-lock input {
+            background: #111;
+            border: 1px solid #333;
+            color: #00D1FF;
+            padding: 5px 10px;
+            border-radius: 4px;
+            outline: none;
+        }
+        .admin-security-lock button {
+            background: #00D1FF;
+            color: #000;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        #auth-msg { margin-left: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="admin-security-lock">
+    <span style="color: #00D1FF;">[ SÉCURITÉ ADMIN ]</span>
+    <input type="email" id="admin-email" placeholder="Email Command">
+    <input type="password" id="admin-password" placeholder="Clé d'accès">
+    <button onclick="loginAdmin()">DÉVERROUILLER LE SYSTÈME</button>
+    <span id="auth-msg" style="color: #666;">SYSTÈME VERROUILLÉ</span>
+</div>
+
+<div class="header">
+    <div class="logo-area">
+        <div class="feca-badge">PRO</div>
+        <h1>FECAAPP ELITE COMMAND v5.2</h1>
+    </div>
+    <div id="status-io">📡 SIGNAL LIVE DÉCONNECTÉ</div>
+</div>
+
+<div class="main-layout">
+    <div class="side-panel">
+        
+        <div class="match-card side-card blue-border">
+            <h3><span class="icon">📡</span> PILOTAGE DIRECT</h3>
+            <label for="matchSelector">Match à piloter</label>
+            <select id="matchSelector">
+                <option value="">Chargement des matchs...</option>
+            </select>
+            <button class="btn btn-blue full-width" onclick="addMatchToRegie()">LANCER LA RÉGIE</button>
+        </div>
+        
+        <div class="match-card side-card yellow-border">
+            <h3><span class="icon">🏆</span> CLASSEMENT</h3>
+            <label>Nom de la Compétition</label>
+            <input type="text" id="configLeagueName" placeholder="Ex: ELITE ONE">
+            <label>Nom du Club</label>
+            <input type="text" id="configTeamName" placeholder="Nom du Club">
+            <label>URL Logo Club</label>
+            <input type="text" id="configTeamLogo" placeholder="https://...">
+            <button class="btn btn-yellow full-width black-text" onclick="addTeamToStandings()">AJOUTER AU CLASSEMENT</button>
+        </div>
+
+        <div class="match-card side-card green-border">
+            <h3><span class="icon">📅</span> PROGRAMMATION</h3>
+            <label>Compétition (doit déjà exister)</label>
+            <input type="text" id="setupLeague" placeholder="Ex: ELITE ONE">
+            
+            <label>URL Logo Compétition</label>
+            <input type="text" id="setupLeagueLogo" placeholder="https://...">
+            
+            <label>Genre</label>
+            <select id="setupGender">
+                <option value="Masculin">MASCULIN</option>
+                <option value="Féminin">FÉMININ</option>
+            </select>
+            
+            <label>Journée / Stade / Heure</label>
+            <input type="text" id="setupJournee" placeholder="Ex: J11">
+            <input type="text" id="setupStadium" placeholder="Nom du Stade">
+            <input type="datetime-local" id="setupTime">
+            
+            <div class="setup-teams-grid">
+                <div>
+                    <label>Équipe A</label>
+                    <input type="text" id="setupA" placeholder="Nom A">
+                    <input type="text" id="logoA" placeholder="URL Logo A">
+                </div>
+                <div class="vs-divider">VS</div>
+                <div>
+                    <label>Équipe B</label>
+                    <input type="text" id="setupB" placeholder="Nom B">
+                    <input type="text" id="logoB" placeholder="URL Logo B">
+                </div>
+            </div>
+            
+            <button class="btn btn-green full-width" onclick="createNewMatch()">ENREGISTRER EN BASE</button>
+        </div>
+    </div>
+    
+    <div id="regieContainer" class="regie-main-area">
+        </div>
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>

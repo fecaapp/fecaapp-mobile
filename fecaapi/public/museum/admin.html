@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FECAAPP | LIVE ADMIN SUPABASE</title>
+
+    <script src="../config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --gold: #FFD700; --green: #00FF85; --red: #ff4d4d; --blue: #00D1FF; --purple: #A855F7; --orange: #FF8A00; --dark: #0A0A0A; --card: #151515; }
@@ -273,7 +275,7 @@
             if (error) throw error;
             const select = document.getElementById('moduleSelect');
             select.innerHTML = '<option value="">Choisir un Module</option>';
-            data.forEach(m => { select.innerHTML += <option value="${m.id}">${m.title}</option>; });
+            data.forEach(m => { select.innerHTML += `<option value="${m.id}">${m.title}</option>`; });
         } catch(err) { addLog("Erreur modules: " + err.message, "red");}
     }
 

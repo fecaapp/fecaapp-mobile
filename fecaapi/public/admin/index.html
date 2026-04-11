@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FecaApp - Dashboard Admin Official</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -234,12 +235,9 @@
     </main>
 
     <script>
-        const SB_URL = "https://xmbuqisqmxigdcuivdjc.supabase.co";
-        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtYnVxaXNxbXhpZ2RjdWl2ZGpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5ODkzNDEsImV4cCI6MjA4MTU2NTM0MX0.QZS1y1gwQnTWIFsWw2Jw9NoNL6j0vgUmufjwul88T3g";
-        
-        const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
+        // Utilisation des variables depuis config.js
+        const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
-        // NOUVELLE FONCTION DE CONNEXION
         async function loginAdmin() {
             const email = document.getElementById('admin-email').value;
             const password = document.getElementById('admin-password').value;
@@ -290,7 +288,7 @@
                 let rawPath = cert.proof_document_url ? cert.proof_document_url.trim() : "";
                 let fileName = rawPath.split('/').pop();
                 let finalPath = `${cert.user_id}/${fileName}`;
-                const docUrl = `${SB_URL}/storage/v1/object/public/certifications/${finalPath}`;
+                const docUrl = `${CONFIG.SUPABASE_URL}/storage/v1/object/public/certifications/${finalPath}`;
 
                 tbody.innerHTML += `
                     <tr>
@@ -345,7 +343,7 @@
                         <td style="color:#1b5e20; font-weight:bold">${pay.amount || 0} FCFA</td>
                         <td>
                             <button class="btn btn-approve" onclick="updatePayment('${pay.id}', 'completed')">Payé</button>
-                            <button class="btn btn-reject" onclick="updatePayment('${pay.id}', 'rejected')">Rejeter</button>
+                            <button class="btn btn-reject" onclick="updatePayment('${pay.id}', 'rejected')">Refuser</button>
                         </td>
                     </tr>
                 `;

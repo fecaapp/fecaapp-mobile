@@ -5,8 +5,7 @@
 class AppConfig {
   // 1. PARAMÈTRES DE CONNEXION (Extraits de ton main.dart)
   static const String supabaseUrl = "https://xmbuqisqmxigdcuivdjc.supabase.co";
-  static const String supabaseAnonKey =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtYnVxaXNxbXhpZ2RjdWl2ZGpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5ODkzNDEsImV4cCI6MjA4MTU2NTM0MX0.QZS1y1gwQnTWIFsWw2Jw9NoNL6j0vgUmufjwul88T3g";
+  static const String supabaseAnonKey = "";
 
   // 2. IDENTIFIANTS DES BUCKETS DE STOCKAGE (STORAGE)
   // Utilise ces constantes dans tes services pour éviter les fautes de frappe

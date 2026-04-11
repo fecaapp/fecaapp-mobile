@@ -11,6 +11,9 @@ import 'screens/auth_screen.dart';
 // Tes imports de Providers
 import 'providers/museum_provider.dart';
 
+// Ton fichier de configuration
+import 'config.dart';
+
 /// --- LE WIDGET DE LA BANNIÈRE ANIMÉE (SLIDE) ---
 class ConnectivityBanner extends StatelessWidget {
   const ConnectivityBanner({super.key});
@@ -79,11 +82,10 @@ Future<void> main() async {
   // Initialisation des dates (Français)
   await initializeDateFormatting('fr_FR', null);
 
-  // Initialisation Supabase
+  // Initialisation Supabase sécurisée via config.dart
   await Supabase.initialize(
-    url: "https://xmbuqisqmxigdcuivdjc.supabase.co",
-    anonKey:
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtYnVxaXNxbXhpZ2RjdWl2ZGpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5ODkzNDEsImV4cCI6MjA4MTU2NTM0MX0.QZS1y1gwQnTWIFsWw2Jw9NoNL6j0vgUmufjwul88T3g",
+    url: AppConfig.supabaseUrl,
+    anonKey: AppConfig.supabaseAnonKey,
   );
 
   runApp(

@@ -1,3 +1,19 @@
 node_modules
 # Keep environment variables out of version control
 .env
+# Fichiers et dossiers créés par Flutter/Dart
+.dart_tool/
+.packages
+build/
+pubspec.lock
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Environnement et clés
+.env*
+config.dart
+config.js
+
+# Dépendances Node.js (si tu en as)
+node_modules/
+dist/

@@ -8,7 +8,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node12",
+    "moduleResolution": "node",
     "resolveJsonModule": true,
     "sourceMap": true
   },

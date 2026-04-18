@@ -19,6 +19,9 @@ class User {
   final String? withdrawalPhone;
   final String? withdrawalPin;
 
+  // --- STATUT ABONNEMENT (évite le flash bouton) ---
+  final bool? isFollowing;
+
   User({
     required this.id,
     required this.fullName,
@@ -33,6 +36,7 @@ class User {
     this.postsCount = 0,
     this.withdrawalPhone,
     this.withdrawalPin,
+    this.isFollowing,
   });
 
   // ============================================================
@@ -67,6 +71,8 @@ class User {
       // Données financières (si elles existent dans ta table ou via extension)
       withdrawalPhone: json['withdrawal_phone']?.toString(),
       withdrawalPin: json['withdrawal_pin']?.toString(),
+
+      // isFollowing non mappé depuis JSON — toujours résolu via Supabase
     );
   }
 
@@ -105,6 +111,7 @@ class User {
     int? postsCount,
     String? withdrawalPhone,
     String? withdrawalPin,
+    bool? isFollowing,
   }) {
     return User(
       id: id,
@@ -120,6 +127,7 @@ class User {
       postsCount: postsCount ?? this.postsCount,
       withdrawalPhone: withdrawalPhone ?? this.withdrawalPhone,
       withdrawalPin: withdrawalPin ?? this.withdrawalPin,
+      isFollowing: isFollowing ?? this.isFollowing,
     );
   }
 }

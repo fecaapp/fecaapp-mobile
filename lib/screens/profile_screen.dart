@@ -9,9 +9,10 @@ import 'messages_screen.dart';
 import 'create_content_screen.dart';
 import 'dashboard_screen.dart';
 import 'dart:io';
+import '../widgets/video_post_player.dart';
 
 // ==========================================
-// FICHIER : PROFILE_SCREEN.DART (BLOC 1 - INTÉGRALITÉ PROPRE)
+// FICHIER : PROFILE_SCREEN.DART
 // ==========================================
 
 class ProfileScreen extends StatefulWidget {
@@ -25,19 +26,16 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen>
     with TickerProviderStateMixin {
-  // --- ÉTAT ET SERVICES ---
   final SocialService _socialService = SocialService();
-  // Variable 'supabase' utilisée par le Bloc 2 pour éviter les erreurs rouges
   final sb.SupabaseClient supabase = sb.Supabase.instance.client;
 
   bool isExpanded = false;
   bool isFollowing = false;
   int followersCount = 0;
   bool _isLoading = true;
-  final bool _showLikeOverlay = false;
+  bool _showLikeOverlay = false;
   List<dynamic> _userPosts = [];
 
-  // --- LOGIQUE D'ANIMATION (Lion Like) ---
   late AnimationController _likeController;
   late Animation<double> _scale;
   late Animation<double> _opacity;
@@ -49,10 +47,12 @@ class _ProfileScreenState extends State<ProfileScreen>
   String? currentAvatarUrl;
   String? currentCoverUrl;
 
+  // --- VIDÉO : suivi de quel post est en lecture ---
+  String? _playingVideoPostId;
+
   @override
   void initState() {
     super.initState();
-    // Initialisation depuis l'objet User passé en paramètre
     currentFullName = widget.user.fullName;
     currentUsername = widget.user.fullName.replaceAll(' ', '_').toLowerCase();
     currentBio =
@@ -61,8 +61,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     currentAvatarUrl = widget.user.img_url;
     currentCoverUrl = widget.user.cover_url;
     followersCount = widget.user.followersCount;
+    isFollowing = widget.user.isFollowing ?? false;
 
-    // --- CONFIGURATION ANIMATION LIKE ---
     _likeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
@@ -71,13 +71,11 @@ class _ProfileScreenState extends State<ProfileScreen>
       begin: 0.6,
       end: 1.4,
     ).chain(CurveTween(curve: Curves.elasticOut)).animate(_likeController);
-
     _opacity = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 20),
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.0), weight: 50),
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 30),
     ]).animate(_likeController);
-
     _moveUp =
         Tween<Offset>(
           begin: const Offset(0, 0.2),
@@ -86,7 +84,6 @@ class _ProfileScreenState extends State<ProfileScreen>
           CurvedAnimation(parent: _likeController, curve: Curves.easeOutCubic),
         );
 
-    // --- LANCEMENT DES REQUÊTES ---
     _initProfile();
   }
 
@@ -108,7 +105,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     super.dispose();
   }
 
-  // --- REFRESH ET CHARGEMENT ---
   Future<void> _handleRefresh() async {
     HapticFeedback.lightImpact();
     await _loadUserContent();
@@ -116,33 +112,25 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Future<void> _loadUserContent() async {
     if (!mounted) return;
-    setState(() => _isLoading = true);
-
     try {
       final String myId = supabase.auth.currentUser!.id;
-
-      // 1. Charger les posts de l'auteur
       final posts = await _socialService.fetchPosts(
         myId,
         authorId: widget.user.id,
       );
-
-      // 2. Charger les infos fraîches du profil
       final userData = await supabase
           .from('users')
           .select()
           .eq('id', widget.user.id)
           .single();
-
       if (mounted) {
         setState(() {
           _userPosts = posts;
-          currentAvatarUrl = userData['img_url'];
-          currentCoverUrl = userData['cover_url'];
+          currentAvatarUrl = userData['img_url'] ?? currentAvatarUrl;
+          currentCoverUrl = userData['cover_url'] ?? currentCoverUrl;
           currentFullName = userData['full_name'] ?? currentFullName;
           currentBio = userData['bio'] ?? currentBio;
-          // Synchronisation du compteur réel de la DB
-          followersCount = userData['followers_count'] ?? 0;
+          followersCount = userData['followers_count'] ?? followersCount;
           _isLoading = false;
         });
       }
@@ -152,7 +140,47 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  // --- ZOOM IMAGE PLEIN ÉCRAN ---
+  String _timeAgo(String dateTimeStr) {
+    try {
+      DateTime postDate = DateTime.parse(dateTimeStr);
+      Duration diff = DateTime.now().difference(postDate);
+      if (diff.inMinutes < 1) return "À l'instant";
+      if (diff.inMinutes < 60) return "il y a ${diff.inMinutes} min";
+      if (diff.inHours < 24) return "il y a ${diff.inHours} h";
+      return "${postDate.day}/${postDate.month}/${postDate.year}";
+    } catch (e) {
+      return "Récemment";
+    }
+  }
+
+  Future<void> _toggleLike(dynamic post) async {
+    final bool isLiked = post['is_liked_by_me'] ?? false;
+    setState(() {
+      post['is_liked_by_me'] = !isLiked;
+      post['likes_count'] = isLiked
+          ? (post['likes_count'] - 1)
+          : (post['likes_count'] + 1);
+    });
+    try {
+      await _socialService.toggleLike(
+        post['id'].toString(),
+        supabase.auth.currentUser!.id,
+      );
+    } catch (e) {
+      _loadUserContent();
+    }
+  }
+
+  void _handleDoubleTap(dynamic post) {
+    if (!(post['is_liked_by_me'] ?? false)) _toggleLike(post);
+    HapticFeedback.mediumImpact();
+    setState(() => _showLikeOverlay = true);
+    _likeController.forward(from: 0);
+    Timer(const Duration(milliseconds: 800), () {
+      if (mounted) setState(() => _showLikeOverlay = false);
+    });
+  }
+
   void _showZoomedImage(String url) {
     if (url.isEmpty) return;
     Navigator.push(
@@ -186,7 +214,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // --- LOGIQUE ABONNEMENT ---
   Future<void> _checkFollowingStatus() async {
     try {
       final String myId = supabase.auth.currentUser!.id;
@@ -200,7 +227,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  // --- MISE À JOUR MÉDIA (Avatar & Couverture) ---
   Future<void> _pickImage(bool isCover) async {
     final ImagePicker picker = ImagePicker();
     try {
@@ -208,17 +234,14 @@ class _ProfileScreenState extends State<ProfileScreen>
         source: ImageSource.gallery,
         imageQuality: 70,
       );
-
       if (image != null) {
         HapticFeedback.mediumImpact();
         setState(() => _isLoading = true);
-
         final bool success = await _socialService.updateProfileMedia(
           userId: widget.user.id,
           file: File(image.path),
           type: isCover ? 'cover' : 'avatar',
         );
-
         if (success) {
           await _socialService.createPost(
             userId: widget.user.id,
@@ -237,7 +260,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  // --- APP BAR AVEC COUVERTURE TACTILE ---
+  // ==========================================
+  // APP BAR
+  // ==========================================
+
   Widget _buildAppBar() {
     final String coverUrl =
         (currentCoverUrl != null && currentCoverUrl!.isNotEmpty)
@@ -297,22 +323,20 @@ class _ProfileScreenState extends State<ProfileScreen>
       ),
     );
   }
+
   // ==========================================
-  // FICHIER : PROFILE_SCREEN.DART (BLOC 2 - STYLE & ABONNEMENT CORRIGÉ)
+  // BLOC 2 - AVATAR & INFOS
   // ==========================================
 
-  // --- AVATAR DU LION (STYLE TRICOLORE CAMEROUN 🇨🇲) ---
   Widget _buildProfileAvatar() {
     final String avatarUrl =
         (currentAvatarUrl != null && currentAvatarUrl!.isNotEmpty)
         ? currentAvatarUrl!
         : "";
-
     return Center(
       child: Stack(
         alignment: Alignment.bottomRight,
         children: [
-          // Bordure tricolore Lions Indomptables
           Container(
             padding: const EdgeInsets.all(4),
             decoration: const BoxDecoration(
@@ -358,7 +382,6 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
             ),
           ),
-          // Bouton d'édition d'avatar (Uniquement si c'est moi)
           if (supabase.auth.currentUser?.id == widget.user.id)
             GestureDetector(
               onTap: () => _pickImage(false),
@@ -384,7 +407,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // --- INFORMATIONS UTILISATEUR (NOM & BADGE CERTIFIÉ) ---
   Widget _buildUserInfo() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -429,14 +451,12 @@ class _ProfileScreenState extends State<ProfileScreen>
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 20),
-          // BOUTON PRINCIPAL D'ABONNEMENT
           _buildFollowButton(),
         ],
       ),
     );
   }
 
-  // --- BOUTON D'ABONNEMENT (DYNAMIQUE AVEC CALCUL IMMÉDIAT) ---
   Widget _buildFollowButton() {
     return GestureDetector(
       onTap: _toggleFollow,
@@ -464,17 +484,11 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // --- LOGIQUE DE CALCUL D'ABONNEMENT (CORRIGÉ & SANS ROUGE) ---
   Future<void> _toggleFollow() async {
-    // Utilisation directe de la variable 'supabase' définie dans ta classe
     final String? myId = supabase.auth.currentUser?.id;
     final String targetId = widget.user.id;
-
     if (myId == null) return;
-
     HapticFeedback.mediumImpact();
-
-    // 1. MISE À JOUR OPTIMISTE (Calcul immédiat à l'écran)
     setState(() {
       if (isFollowing) {
         isFollowing = false;
@@ -484,12 +498,9 @@ class _ProfileScreenState extends State<ProfileScreen>
         followersCount++;
       }
     });
-
-    // 2. SYNCHRONISATION SUPABASE
     try {
       await _socialService.toggleFollow(myId, targetId);
     } catch (e) {
-      // En cas d'erreur réseau, on fait machine arrière sur le chiffre
       if (mounted) {
         setState(() {
           isFollowing = !isFollowing;
@@ -500,10 +511,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  // --- SECTION BIOGRAPHIE ---
   Widget _buildBioSection() {
     final bool isLongBio = currentBio.length > 90;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
       child: GestureDetector(
@@ -544,7 +553,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // --- RANGÉE DES STATISTIQUES (CALCUL DYNAMIQUE) ---
   Widget _buildStatsRow() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
@@ -575,7 +583,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     String formattedCount = count >= 1000
         ? "${(count / 1000).toStringAsFixed(1)}k"
         : "$count";
-
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -606,19 +613,17 @@ class _ProfileScreenState extends State<ProfileScreen>
       ),
     );
   }
+
   // ==========================================
-  // FICHIER : PROFILE_SCREEN.DART (BLOC 3 - ACTIONS & DASHBOARD CORRIGÉ)
+  // BLOC 3 - ACTIONS & DASHBOARD
   // ==========================================
 
-  // --- BOUTONS D'ACTIONS STRATÉGIQUES (MODIFIER & MESSAGE) ---
   Widget _buildStrategicButtons() {
     final bool isMyProfile = supabase.auth.currentUser?.id == widget.user.id;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          // BOUTON MODIFIER (Visible uniquement si c'est mon profil)
           if (isMyProfile)
             Expanded(
               child: _buildActionBtn(
@@ -628,10 +633,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 textColor: Colors.white,
               ),
             ),
-
           if (isMyProfile) const SizedBox(width: 12),
-
-          // BOUTON MESSAGE (Visible pour tous, s'adapte si c'est mon profil)
           Expanded(
             flex: isMyProfile ? 0 : 1,
             child: GestureDetector(
@@ -657,7 +659,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.mail_outline_rounded,
                         color: Colors.white,
                         size: 20,
@@ -685,7 +687,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // Helper Bouton d'action (Utilisé pour le bouton Modifier)
   Widget _buildActionBtn({
     required String label,
     required VoidCallback onTap,
@@ -720,12 +721,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // --- TABLEAU DE BORD PROFESSIONNEL (DASHBOARD) ---
   Widget _buildDashboardEntry(BuildContext context) {
     if (supabase.auth.currentUser?.id != widget.user.id) {
       return const SizedBox.shrink();
     }
-
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
@@ -792,7 +791,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // --- HEADER DE SECTION (STUDIO FEED) ---
   Widget _buildContentHeader() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
@@ -836,323 +834,348 @@ class _ProfileScreenState extends State<ProfileScreen>
       ),
     );
   }
+
   // ==========================================
-  // FICHIER : PROFILE_SCREEN.DART (BLOC 4 - FLUX INTERACTIF SYNCHRONISÉ)
+  // BLOC 4 - FEED : SliverList pour fluidité
   // ==========================================
 
-  // --- LE FLUX INTERACTIF (L’ÂME DU PROFIL) ---
-  Widget _buildInteractiveFeed() {
-    if (_isLoading) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(60.0),
-          child: CircularProgressIndicator(
-            color: Colors.greenAccent,
-            strokeWidth: 2,
+  // --- FLUIDE : SliverList remplace ListView.builder shrinkWrap ---
+  List<Widget> _buildFeedSlivers() {
+    if (_isLoading && _userPosts.isEmpty) {
+      return [
+        SliverToBoxAdapter(
+          child: const Center(
+            child: Padding(
+              padding: EdgeInsets.all(60.0),
+              child: CircularProgressIndicator(
+                color: Colors.greenAccent,
+                strokeWidth: 2,
+              ),
+            ),
           ),
         ),
-      );
+      ];
     }
 
     if (_userPosts.isEmpty) {
-      return Column(
-        children: [
-          const SizedBox(height: 60),
-          Icon(
-            Icons.layers_clear_rounded,
-            color: Colors.white.withOpacity(0.05),
-            size: 70,
+      return [
+        SliverToBoxAdapter(
+          child: Column(
+            children: [
+              const SizedBox(height: 60),
+              Icon(
+                Icons.layers_clear_rounded,
+                color: Colors.white.withOpacity(0.05),
+                size: 70,
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                "Aucun rugissement dans le studio",
+                style: TextStyle(
+                  color: Colors.white24,
+                  fontSize: 14,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 100),
+            ],
           ),
-          const SizedBox(height: 20),
-          const Text(
-            "Aucun rugissement dans le studio",
-            style: TextStyle(
-              color: Colors.white24,
-              fontSize: 14,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 100),
-        ],
-      );
+        ),
+      ];
     }
 
-    return ListView.builder(
-      shrinkWrap: true,
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _userPosts.length,
-      itemBuilder: (context, index) {
-        final post = _userPosts[index];
-        return _buildFeedItem(post: post, index: index);
-      },
-    );
+    return [
+      SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final post = _userPosts[index];
+          return RepaintBoundary(
+            child: _buildFeedItem(post: post, index: index),
+          );
+        }, childCount: _userPosts.length),
+      ),
+    ];
   }
 
-  // --- RENDU PROFESSIONNEL DU POST (OPTIMISÉ MULTI-MÉDIA) ---
   Widget _buildFeedItem({required dynamic post, required int index}) {
-    String timeAgo(String dateTimeStr) {
-      try {
-        DateTime postDate = DateTime.parse(dateTimeStr);
-        Duration diff = DateTime.now().difference(postDate);
-        if (diff.inMinutes < 1) return "À l'instant";
-        if (diff.inMinutes < 60) return "il y a ${diff.inMinutes} min";
-        if (diff.inHours < 24) return "il y a ${diff.inHours} h";
-        return "${postDate.day}/${postDate.month}/${postDate.year}";
-      } catch (e) {
-        return "Récemment";
-      }
-    }
-
     final String? mediaUrl = post['media_url'];
     final String postType = post['type']?.toString().toUpperCase() ?? 'TEXT';
     final bool isLiked = post['is_liked_by_me'] ?? false;
-
-    // --- SYNCHRONISATION AVEC LE TRIGGER SQL ---
     final int likesCount = post['likes_count'] ?? 0;
     final int commentsCount = post['comments_count'] ?? 0;
     final int repostsCount = post['reposts_count'] ?? 0;
+    final String postId = post['id']?.toString() ?? '';
+
+    // --- VIDÉO : lecture uniquement si l'utilisateur tape ---
+    final bool isPlayingVideo = _playingVideoPostId == postId;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-      child: Column(
-        children: [
-          GestureDetector(
-            onDoubleTap: () => _handleDoubleTap(post),
-            child: Container(
-              height: 520,
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(35),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.5),
-                    blurRadius: 15,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
+      child: GestureDetector(
+        onDoubleTap: () => _handleDoubleTap(post),
+        child: Container(
+          height: 520,
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(35),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.5),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
               ),
-              clipBehavior: Clip.antiAlias,
-              child: Stack(
-                children: [
-                  // --- SYSTÈME MÉDIA ---
-                  Positioned.fill(
-                    child: postType == 'TEXT'
-                        ? Container(
-                            padding: const EdgeInsets.all(40),
-                            color: const Color(0xFF121212),
-                            child: Center(
-                              child: Text(
-                                post['content'] ?? "",
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              // --- MÉDIA ---
+              Positioned.fill(
+                child: postType == 'TEXT'
+                    ? Container(
+                        padding: const EdgeInsets.all(40),
+                        color: const Color(0xFF121212),
+                        child: Center(
+                          child: Text(
+                            post['content'] ?? "",
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
                             ),
-                          )
-                        : (mediaUrl != null && mediaUrl.isNotEmpty)
-                        ? GestureDetector(
-                            onTap: () => _showZoomedImage(mediaUrl),
-                            child: postType == 'VIDEO'
-                                ? const Center(
-                                    child: Icon(
-                                      Icons.play_circle_fill,
-                                      color: Colors.white,
-                                      size: 60,
-                                    ),
-                                  )
-                                : Image.network(
-                                    mediaUrl,
-                                    fit: BoxFit.cover,
-                                    loadingBuilder: (context, child, progress) {
-                                      if (progress == null) return child;
-                                      return const Center(
-                                        child: CircularProgressIndicator(
-                                          color: Colors.greenAccent,
-                                        ),
-                                      );
-                                    },
-                                    errorBuilder: (context, error, stack) =>
-                                        const Center(
-                                          child: Icon(
-                                            Icons.broken_image,
-                                            color: Colors.white24,
-                                          ),
-                                        ),
-                                  ),
-                          )
-                        : Container(color: const Color(0xFF1A1A1A)),
-                  ),
-
-                  // Overlay Gradient
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.black.withOpacity(0.6),
-                              Colors.transparent,
-                              Colors.black.withOpacity(0.85),
-                            ],
                           ),
                         ),
+                      )
+                    : (mediaUrl != null && mediaUrl.isNotEmpty)
+                    ? postType == 'VIDEO'
+                          // --- VIDÉO : thumbnail + bouton play, lecture au tap ---
+                          ? isPlayingVideo
+                                ? VideoPostPlayer(videoUrl: mediaUrl)
+                                : GestureDetector(
+                                    onTap: () => setState(
+                                      () => _playingVideoPostId = postId,
+                                    ),
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        Container(color: Colors.black),
+                                        const Center(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.play_circle_fill_rounded,
+                                                color: Colors.white,
+                                                size: 70,
+                                              ),
+                                              SizedBox(height: 12),
+                                              Text(
+                                                "Appuyer pour lire",
+                                                style: TextStyle(
+                                                  color: Colors.white54,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                          : GestureDetector(
+                              onTap: () => _showZoomedImage(mediaUrl),
+                              child: Image.network(
+                                mediaUrl,
+                                fit: BoxFit.cover,
+                                loadingBuilder: (context, child, progress) {
+                                  if (progress == null) return child;
+                                  return const Center(
+                                    child: CircularProgressIndicator(
+                                      color: Colors.greenAccent,
+                                    ),
+                                  );
+                                },
+                                errorBuilder: (context, error, stack) =>
+                                    const Center(
+                                      child: Icon(
+                                        Icons.broken_image,
+                                        color: Colors.white24,
+                                      ),
+                                    ),
+                              ),
+                            )
+                    : Container(color: const Color(0xFF1A1A1A)),
+              ),
+
+              // --- GRADIENT ---
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        stops: const [0.0, 0.3, 1.0],
+                        colors: [
+                          Colors.black.withOpacity(0.25),
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.70),
+                        ],
                       ),
                     ),
                   ),
+                ),
+              ),
 
-                  // --- HEADER DU POST ---
-                  Positioned(
-                    top: 20,
-                    left: 20,
-                    right: 20,
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundImage:
-                              currentAvatarUrl != null &&
-                                  currentAvatarUrl!.isNotEmpty
-                              ? NetworkImage(currentAvatarUrl!)
-                              : null,
-                          backgroundColor: Colors.white10,
-                          child:
-                              (currentAvatarUrl == null ||
-                                  currentAvatarUrl!.isEmpty)
-                              ? const Icon(
-                                  Icons.person,
-                                  color: Colors.white24,
-                                  size: 18,
-                                )
-                              : null,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
+              // --- HEADER ---
+              Positioned(
+                top: 20,
+                left: 20,
+                right: 20,
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundImage:
+                          currentAvatarUrl != null &&
+                              currentAvatarUrl!.isNotEmpty
+                          ? NetworkImage(currentAvatarUrl!)
+                          : null,
+                      backgroundColor: Colors.white10,
+                      child:
+                          (currentAvatarUrl == null ||
+                              currentAvatarUrl!.isEmpty)
+                          ? const Icon(
+                              Icons.person,
+                              color: Colors.white24,
+                              size: 18,
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
                             children: [
-                              Row(
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      currentFullName,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                              Flexible(
+                                child: Text(
+                                  currentFullName,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
                                   ),
-                                  const SizedBox(width: 5),
-                                  Icon(
-                                    widget.user.isCertified
-                                        ? Icons.verified
-                                        : Icons.stars_rounded,
-                                    color: widget.user.isCertified
-                                        ? Colors.blueAccent
-                                        : Colors.amber,
-                                    size: 14,
-                                  ),
-                                ],
-                              ),
-                              Text(
-                                timeAgo(post['created_at']?.toString() ?? ""),
-                                style: const TextStyle(
-                                  color: Colors.white60,
-                                  fontSize: 10,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
                                 ),
+                              ),
+                              const SizedBox(width: 5),
+                              Icon(
+                                widget.user.isCertified
+                                    ? Icons.verified
+                                    : Icons.stars_rounded,
+                                color: widget.user.isCertified
+                                    ? Colors.blueAccent
+                                    : Colors.amber,
+                                size: 14,
                               ),
                             ],
                           ),
-                        ),
-                        // BRANCHEMENT : OPTIONS DU POST
-                        GestureDetector(
-                          onTap: () => _showPostOptions(post),
-                          child: const Icon(
-                            Icons.more_horiz,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // --- FOOTER (Actions & Contenu) ---
-                  Positioned(
-                    bottom: 25,
-                    left: 20,
-                    right: 20,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (postType != 'TEXT' && post['content'] != null)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 15),
-                            child: Text(
-                              post['content'],
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                height: 1.4,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                          Text(
+                            _timeAgo(post['created_at']?.toString() ?? ""),
+                            style: const TextStyle(
+                              color: Colors.white60,
+                              fontSize: 10,
                             ),
                           ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _interactionItem(
-                              isLiked
-                                  ? Icons.favorite_rounded
-                                  : Icons.favorite_border_rounded,
-                              "$likesCount",
-                              isLiked ? Colors.red : Colors.white,
-                              onTap: () => _toggleLike(post),
-                            ),
-                            // BRANCHEMENT : MODALE COMMENTAIRES
-                            _interactionItem(
-                              Icons.chat_bubble_outline_rounded,
-                              "$commentsCount",
-                              Colors.white,
-                              onTap: () => _showCommentsModal(post),
-                            ),
-                            _interactionItem(
-                              Icons.repeat_rounded,
-                              "$repostsCount",
-                              repostsCount > 0
-                                  ? Colors.greenAccent
-                                  : Colors.white,
-                              onTap: () => _handleRepost(post),
-                            ),
-                            const Icon(
-                              Icons.auto_awesome,
-                              color: Colors.amber,
-                              size: 20,
-                            ),
-                          ],
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                    GestureDetector(
+                      onTap: () => _showPostOptions(post),
+                      child: const Icon(Icons.more_horiz, color: Colors.white),
+                    ),
+                  ],
+                ),
               ),
-            ),
+
+              // --- FOOTER : contenu + actions bien contraints ---
+              Positioned(
+                bottom: 20,
+                left: 20,
+                right: 20,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (postType != 'TEXT' &&
+                        post['content'] != null &&
+                        post['content'].toString().isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          post['content'],
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            height: 1.4,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    // --- ACTIONS : SingleChildScrollView horizontal pour éviter overflow ---
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _interactionItem(
+                            isLiked
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
+                            "$likesCount",
+                            isLiked ? Colors.red : Colors.white,
+                            onTap: () => _toggleLike(post),
+                          ),
+                          const SizedBox(width: 8),
+                          _interactionItem(
+                            Icons.chat_bubble_outline_rounded,
+                            "$commentsCount",
+                            Colors.white,
+                            onTap: () => _showCommentsModal(post),
+                          ),
+                          const SizedBox(width: 8),
+                          _interactionItem(
+                            Icons.repeat_rounded,
+                            "$repostsCount",
+                            repostsCount > 0
+                                ? Colors.greenAccent
+                                : Colors.white,
+                            onTap: () => _handleRepost(post),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.auto_awesome,
+                            color: Colors.amber,
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  // --- HELPERS INTERACTIONS ---
   Widget _interactionItem(
     IconData icon,
     String label,
@@ -1161,8 +1184,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }) {
     return GestureDetector(
       onTap: onTap,
-      behavior:
-          HitTestBehavior.opaque, // CORRECTION : Capture le clic en priorité
+      behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
@@ -1173,77 +1195,74 @@ class _ProfileScreenState extends State<ProfileScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, color: color, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+            if (label != "0") ...[
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  void _handleDoubleTap(dynamic post) {
-    if (!(post['is_liked_by_me'] ?? false)) _toggleLike(post);
-  }
-
-  Future<void> _toggleLike(dynamic post) async {
-    HapticFeedback.lightImpact();
-    final bool currentlyLiked = post['is_liked_by_me'] ?? false;
-    setState(() {
-      post['is_liked_by_me'] = !currentlyLiked;
-      post['likes_count'] =
-          (post['likes_count'] ?? 0) + (post['is_liked_by_me'] ? 1 : -1);
-    });
-    try {
-      await _socialService.toggleLike(
-        post['id'].toString(),
-        supabase.auth.currentUser!.id,
-      );
-    } catch (e) {
-      _loadUserContent();
-    }
-  }
+  Widget _buildLikeHeart() => FadeTransition(
+    opacity: _opacity,
+    child: SlideTransition(
+      position: _moveUp,
+      child: ScaleTransition(
+        scale: _scale,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Colors.green, Colors.red, Colors.yellow],
+                stops: [0.33, 0.33, 0.66],
+              ).createShader(bounds),
+              child: const Icon(Icons.favorite, color: Colors.white, size: 140),
+            ),
+            const Positioned(
+              top: 55,
+              child: Icon(Icons.star, color: Colors.yellow, size: 40),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 
   void _handleRepost(dynamic post) async {
-    // 1. Vibration immédiate pour confirmer le toucher
     HapticFeedback.mediumImpact();
-
-    // 2. CORRECTION : Mise à jour optimiste de l'UI (le chiffre monte tout de suite)
     setState(() {
       int currentCount = post['reposts_count'] ?? 0;
       post['reposts_count'] = currentCount + 1;
     });
-
     try {
-      // 3. Appel au service
       await _socialService.repost(supabase.auth.currentUser!.id, post);
-
-      // 4. On rafraîchit pour voir le nouveau post dans le feed
       _loadUserContent();
     } catch (e) {
-      // En cas d'erreur, on remet le chiffre à l'état initial via un reload
       _loadUserContent();
       debugPrint("🦁 Erreur repost: $e");
     }
   }
+
   // ==========================================
-  // FICHIER : PROFILE_SCREEN.DART (BLOC 5 - ASSEMBLAGE & UI FINALE)
+  // BLOC 5 - BUILD PRINCIPAL
   // ==========================================
 
   @override
   Widget build(BuildContext context) {
-    // Vérification dynamique de la propriété du profil
     final bool isMyProfile = widget.user.id == supabase.auth.currentUser?.id;
 
     return Scaffold(
       backgroundColor: const Color(0xFF050505),
-      // Le bouton "PLUS" n'apparaît que sur ton propre profil pour publier
       floatingActionButton: isMyProfile ? _buildFAB() : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: RefreshIndicator(
@@ -1257,33 +1276,32 @@ class _ProfileScreenState extends State<ProfileScreen>
                 parent: AlwaysScrollableScrollPhysics(),
               ),
               slivers: [
-                _buildAppBar(), // Bloc 1
+                _buildAppBar(),
                 SliverToBoxAdapter(
                   child: Column(
                     children: [
                       const SizedBox(height: 15),
-                      _buildProfileAvatar(), // Bloc 2
+                      _buildProfileAvatar(),
                       const SizedBox(height: 15),
-                      _buildUserInfo(), // Bloc 2 (Contient S'abonner)
-                      _buildBioSection(), // Bloc 2
+                      _buildUserInfo(),
+                      _buildBioSection(),
                       const SizedBox(height: 25),
-                      _buildStatsRow(), // Bloc 2
+                      _buildStatsRow(),
                       const SizedBox(height: 20),
-                      _buildStrategicButtons(), // Bloc 3 (Contient Message/Abonnement)
+                      _buildStrategicButtons(),
                       const SizedBox(height: 15),
-                      _buildDashboardEntry(context), // Bloc 3
+                      _buildDashboardEntry(context),
                       const SizedBox(height: 20),
-                      _buildContentHeader(), // Bloc 3
-                      _buildInteractiveFeed(), // Bloc 4
-                      const SizedBox(
-                        height: 120,
-                      ), // Espace de confort pour le scroll
+                      _buildContentHeader(),
                     ],
                   ),
                 ),
+                // --- FLUIDE : SliverList direct dans CustomScrollView ---
+                ..._buildFeedSlivers(),
+                const SliverToBoxAdapter(child: SizedBox(height: 120)),
               ],
             ),
-            // Overlay Like avec animation tricolore montante
+            // --- CŒUR au niveau Scaffold ---
             if (_showLikeOverlay)
               IgnorePointer(child: Center(child: _buildLikeHeart())),
           ],
@@ -1292,7 +1310,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // --- BOUTON DE PUBLICATION (DESIGN PREMIUM VERT) ---
   Widget _buildFAB() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10, right: 5),
@@ -1306,12 +1323,11 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  /* ================= LOGIQUE INJECTÉE : COMMENTAIRES & OPTIONS ================= */
+  /* ================= COMMENTAIRES & OPTIONS ================= */
 
   void _showCommentsModal(dynamic post) {
     final TextEditingController commentController = TextEditingController();
     final String postId = post['id'].toString();
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1374,7 +1390,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                       itemCount: comments.length,
                       itemBuilder: (context, i) {
                         final comment = comments[i];
-
                         final String authorId = comment['author_id'] ?? "";
                         final String authorName =
                             comment['author_name'] ?? "Lion anonyme";
@@ -1520,17 +1535,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                         final text = commentController.text.trim();
                         if (text.isNotEmpty) {
                           HapticFeedback.lightImpact();
-
                           bool ok = await _socialService.addComment(
                             postId,
                             supabase.auth.currentUser!.id,
                             text,
                           );
-
                           if (ok) {
                             commentController.clear();
-                            // CORRECTION DU CALCUL : On met à jour l'UI locale du feed
-                            // sans appeler de rechargement externe qui écraserait la donnée.
                             setState(() {
                               int currentCount =
                                   int.tryParse(
@@ -1539,7 +1550,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   0;
                               post['comments_count'] = currentCount + 1;
                             });
-                            // On force aussi le rafraîchissement visuel de la modale si nécessaire
                             setModalState(() {});
                           }
                         }
@@ -1626,8 +1636,6 @@ class _ProfileScreenState extends State<ProfileScreen>
       onTap: onTap,
     );
   }
-
-  /* ============================================================================= */
 
   void _showPublishMenu(BuildContext context) {
     HapticFeedback.heavyImpact();
@@ -1732,38 +1740,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // --- ANIMATION DU CŒUR (Translation montante tricolore) ---
-  Widget _buildLikeHeart() => FadeTransition(
-    opacity: _opacity,
-    child: SlideTransition(
-      position: _moveUp,
-      child: ScaleTransition(
-        scale: _scale,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Colors.green, Colors.red, Colors.yellow],
-                stops: [0.33, 0.33, 0.66],
-              ).createShader(bounds),
-              child: const Icon(Icons.favorite, color: Colors.white, size: 130),
-            ),
-            const Positioned(
-              top: 45,
-              child: Icon(Icons.star, color: Colors.yellow, size: 35),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-
-  // --- PARAMÈTRES DU STUDIO (ÉDITION NOM & BIO) ---
   void _showEditProfileDialog() {
     final nameController = TextEditingController(text: currentFullName);
     final bioController = TextEditingController(text: currentBio);
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1847,12 +1826,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                         'bio': bioController.text.trim(),
                       })
                       .eq('id', widget.user.id);
-
                   setState(() {
                     currentFullName = nameController.text.trim();
                     currentBio = bioController.text.trim();
                   });
-
                   if (mounted) Navigator.pop(context);
                 } catch (e) {
                   debugPrint("🦁 Erreur update profil: $e");

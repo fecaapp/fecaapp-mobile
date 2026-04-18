@@ -455,4 +455,133 @@ class SocialService {
       rethrow;
     }
   }
+
+  // ======================================================
+  // --- 16. FECAAI — PROFIL UTILISATEUR POUR L'IA ---
+  // ======================================================
+  // Récupère depuis la table 'users' les champs nécessaires
+  // à FecaAI pour personnaliser ses réponses selon le rôle.
+  // Colonnes lues : full_name, role, img_url (déjà existantes).
+  // Les colonnes sport / level sont optionnelles — si elles
+  // n'existent pas encore dans ta table, FecaAI utilisera
+  // des valeurs par défaut sans planter.
+
+  Future<Map<String, String>> getUserProfileForAI(String userId) async {
+    try {
+      final data = await supabase
+          .from('users')
+          .select('full_name, role, img_url, sport, level')
+          .eq('id', userId.trim())
+          .single();
+
+      return {
+        'full_name': (data['full_name'] ?? 'Athlète').toString(),
+        'role': (data['role'] ?? 'joueur').toString().toLowerCase(),
+        'img_url': (data['img_url'] ?? '').toString(),
+        // Si les colonnes sport/level n'existent pas encore,
+        // Supabase retournera null → on utilise les valeurs par défaut
+        'sport': (data['sport'] ?? 'Football').toString(),
+        'level': (data['level'] ?? 'Amateur').toString(),
+      };
+    } catch (e) {
+      print("🦁 Erreur getUserProfileForAI: $e");
+      // Retour sécurisé : FecaAI fonctionnera en mode générique
+      return {
+        'full_name': 'Athlète',
+        'role': 'joueur',
+        'img_url': '',
+        'sport': 'Football',
+        'level': 'Amateur',
+      };
+    }
+  }
+
+  // ======================================================
+  // --- 17. FECAAI — SAUVEGARDER UN MESSAGE DE CONVERSATION ---
+  // ======================================================
+  // Persiste chaque échange dans la table 'ai_conversations'.
+  // Structure SQL minimale requise (à créer dans Supabase) :
+  //
+  //   CREATE TABLE public.ai_conversations (
+  //     id          uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  //     user_id     uuid REFERENCES public.users(id) ON DELETE CASCADE,
+  //     role        text NOT NULL,           -- 'user' ou 'model'
+  //     content     text NOT NULL,
+  //     created_at  timestamptz DEFAULT now()
+  //   );
+  //
+  //   ALTER TABLE public.ai_conversations ENABLE ROW LEVEL SECURITY;
+  //   CREATE POLICY "ai_owner" ON public.ai_conversations
+  //     FOR ALL USING (auth.uid() = user_id);
+
+  Future<bool> saveAIMessage({
+    required String userId,
+    required String role, // 'user' ou 'model'
+    required String content,
+  }) async {
+    try {
+      await supabase.from('ai_conversations').insert({
+        'user_id': userId.trim(),
+        'role': role,
+        'content': content,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      return true;
+    } catch (e) {
+      print("🦁 Erreur saveAIMessage: $e");
+      return false;
+    }
+  }
+
+  // ======================================================
+  // --- 18. FECAAI — RÉCUPÉRER L'HISTORIQUE DE CONVERSATION ---
+  // ======================================================
+  // Charge les N derniers messages pour reconstruire le
+  // contexte à envoyer à Gemini à chaque nouvelle session.
+  // [limit] : nombre de messages à charger (défaut 20)
+
+  Future<List<Map<String, String>>> getAIConversationHistory({
+    required String userId,
+    int limit = 20,
+  }) async {
+    try {
+      final response = await supabase
+          .from('ai_conversations')
+          .select('role, content')
+          .eq('user_id', userId.trim())
+          .order('created_at', ascending: true)
+          .limit(limit);
+
+      return (response as List)
+          .map(
+            (row) => {
+              'role': row['role'].toString(),
+              'content': row['content'].toString(),
+            },
+          )
+          .toList();
+    } catch (e) {
+      print("🦁 Erreur getAIConversationHistory: $e");
+      return [];
+    }
+  }
+
+  // ======================================================
+  // --- 19. FECAAI — EFFACER L'HISTORIQUE DE CONVERSATION ---
+  // ======================================================
+  // Appelé quand l'utilisateur tape sur le bouton "reset"
+  // dans FecaAIScreen pour repartir d'une conversation vierge.
+
+  Future<bool> clearAIConversationHistory(String userId) async {
+    try {
+      await supabase
+          .from('ai_conversations')
+          .delete()
+          .eq('user_id', userId.trim());
+      return true;
+    } catch (e) {
+      print("🦁 Erreur clearAIConversationHistory: $e");
+      return false;
+    }
+  }
 }

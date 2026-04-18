@@ -129,6 +129,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
+  // --- UTILITAIRE : timeAgo extrait au niveau classe pour éviter rebuild ---
+  String _timeAgo(String dateTimeStr) {
+    try {
+      DateTime postDate = DateTime.parse(dateTimeStr);
+      Duration diff = DateTime.now().difference(postDate);
+      if (diff.inMinutes < 1) return "À l'instant";
+      if (diff.inMinutes < 60) return "il y a ${diff.inMinutes} min";
+      if (diff.inHours < 24) return "il y a ${diff.inHours} h";
+      return "${postDate.day}/${postDate.month}/${postDate.year}";
+    } catch (e) {
+      return "Récemment";
+    }
+  }
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -305,51 +319,79 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
       actions: [
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.chat_bubble_outline_rounded,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      MessagesScreen(currentUserId: widget.user.id),
-                ),
-              ),
+        // --- ICÔNE MESSAGES CHIC ---
+        GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  MessagesScreen(currentUserId: widget.user.id),
             ),
-            Positioned(
-              right: 12,
-              top: 12,
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(
-                  color: Colors.redAccent,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.redAccent,
-                      blurRadius: 4,
-                      spreadRadius: 1,
+          ),
+          child: Container(
+            margin: const EdgeInsets.only(right: 6),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withOpacity(0.08),
+                        Colors.white.withOpacity(0.03),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                  ],
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.12),
+                      width: 1,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.mark_chat_unread_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
                 ),
-              ),
+                Positioned(
+                  right: 2,
+                  top: 2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFF4757), Color(0xFFFF6B81)],
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0xFFFF4757),
+                          blurRadius: 6,
+                          spreadRadius: 0,
+                        ),
+                      ],
+                    ),
+                    child: const Text(
+                      "3",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
+        // --- AVATAR PROFIL ---
         GestureDetector(
           onTap: () => Navigator.push(
             context,
@@ -457,6 +499,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     fontSize: 19,
                   ),
                   overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
               ),
               const SizedBox(width: 8),
@@ -677,16 +720,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 : ListView.builder(
                     controller: _scrollController,
                     physics: const AlwaysScrollableScrollPhysics(),
+                    // --- SCROLL FLUIDE : cacheExtent ajouté ---
+                    cacheExtent: 1000,
                     itemCount: _posts.length + 1,
                     itemBuilder: (context, index) {
                       if (index == 0) return _buildStoriesSection();
-
                       final post = _posts[index - 1];
-                      return _buildFeedItem(post: post, index: index - 1);
+                      // --- SCROLL FLUIDE : RepaintBoundary sur chaque item ---
+                      return RepaintBoundary(
+                        child: _buildFeedItem(post: post, index: index - 1),
+                      );
                     },
                   ),
           ),
-          // Navigation Bar animée
           AnimatedPositioned(
             duration: const Duration(milliseconds: 400),
             curve: Curves.easeInOutCubic,
@@ -714,7 +760,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         itemCount: _groupedStatuses.length + 1,
         itemBuilder: (context, index) {
           if (index == 0) return _buildAddStory();
-
           final status = _groupedStatuses[index - 1];
           return _buildStoryItem(status);
         },
@@ -824,17 +869,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
           const SizedBox(height: 8),
+          // --- OVERFLOW CORRIGÉ : maxLines + ellipsis ---
           SizedBox(
             width: 70,
             child: Text(
               authorName.split(' ')[0],
               textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: isViewed ? Colors.white38 : Colors.white,
                 fontSize: 11,
                 fontWeight: isViewed ? FontWeight.normal : FontWeight.w600,
               ),
-              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -844,7 +891,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   /* ================= FEED ITEM : VERSION INTÉGRALE & PROPRE ================= */
   Widget _buildFeedItem({required dynamic post, required int index}) {
-    // Extraction de l'URL pour correspondre à ton SocialService
     final String? mediaUrl = post['media_url'];
     final List<String> mediaUrls = mediaUrl != null ? [mediaUrl] : [];
 
@@ -859,19 +905,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final int repostCount = post['reposts_count'] ?? 0;
 
     bool isLiked = post['is_liked_by_me'] ?? false;
-
-    String timeAgo(String dateTimeStr) {
-      try {
-        DateTime postDate = DateTime.parse(dateTimeStr);
-        Duration diff = DateTime.now().difference(postDate);
-        if (diff.inMinutes < 1) return "À l'instant";
-        if (diff.inMinutes < 60) return "il y a ${diff.inMinutes} min";
-        if (diff.inHours < 24) return "il y a ${diff.inHours} h";
-        return "${postDate.day}/${postDate.month}/${postDate.year}";
-      } catch (e) {
-        return "Récemment";
-      }
-    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
@@ -922,7 +955,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               child: Stack(
                 children: [
-                  // --- SYSTÈME MULTIMÉDIA CORRIGÉ ---
+                  // --- PHOTOS PLUS CLAIRES : BoxFit.cover ---
                   Positioned.fill(
                     child: mediaUrls.isNotEmpty
                         ? (postType == "VIDEO"
@@ -931,12 +964,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   onTap: () => _showZoomedImage(mediaUrls[0]),
                                   child: Image.network(
                                     mediaUrls[0],
-                                    fit: BoxFit.contain,
+                                    fit: BoxFit.cover,
                                   ),
                                 ))
                         : Container(color: const Color(0xFF1A1A1A)),
                   ),
-
                   // Gradient (IgnorePointer pour laisser passer les clics vers la vidéo)
                   Positioned.fill(
                     child: IgnorePointer(
@@ -947,9 +979,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             end: Alignment.bottomCenter,
                             stops: const [0.0, 0.3, 1.0],
                             colors: [
-                              Colors.black.withOpacity(0.7),
+                              // --- PHOTOS PLUS CLAIRES : opacités réduites ---
+                              Colors.black.withOpacity(0.25),
                               Colors.transparent,
-                              Colors.black.withOpacity(0.9),
+                              Colors.black.withOpacity(0.70),
                             ],
                           ),
                         ),
@@ -984,15 +1017,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // AJOUT DU BADGE DE CERTIFICATION ICI
+                              // --- OVERFLOW CORRIGÉ : Flexible autour du nom ---
                               Row(
                                 children: [
-                                  Text(
-                                    userData?['full_name'] ?? "Utilisateur",
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
+                                  Flexible(
+                                    child: Text(
+                                      userData?['full_name'] ?? "Utilisateur",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
                                     ),
                                   ),
                                   if (isAuthorCertified) ...[
@@ -1006,7 +1043,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 ],
                               ),
                               Text(
-                                timeAgo(post['created_at']),
+                                // --- SCROLL FLUIDE : _timeAgo() de la classe ---
+                                _timeAgo(post['created_at']),
                                 style: TextStyle(
                                   color: Colors.white.withOpacity(0.6),
                                   fontSize: 10,
@@ -1043,6 +1081,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               fontSize: 14,
                             ),
                             maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         const SizedBox(height: 15),
                         Row(
@@ -1123,6 +1162,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     );
   }
+
   /* ================= NOUVELLES FONCTIONS : PLEIN ÉCRAN & TEXTE ================= */
 
   void _showZoomedImage(String imageUrl) {
@@ -1206,7 +1246,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildVideoPlayer(String videoUrl) {
-    // Placeholder pour la vidéo (à lier avec ton package video_player plus tard)
     return Container(
       color: Colors.black,
       child: const Center(
@@ -1287,7 +1326,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       itemCount: comments.length,
                       itemBuilder: (context, i) {
                         final comment = comments[i];
-
                         final String authorId = comment['author_id'] ?? "";
                         final String authorName =
                             comment['author_name'] ?? "Lion anonyme";
@@ -1433,19 +1471,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         final text = commentController.text.trim();
                         if (text.isNotEmpty) {
                           HapticFeedback.lightImpact();
-
-                          // 1. Envoi au service Supabase
                           bool ok = await _socialService.addComment(
                             postId,
                             widget.user.id,
                             text,
                           );
-
                           if (ok) {
                             commentController.clear();
-
-                            // 2. MISE À JOUR LOCALE OPTIMISTE
-                            // On utilise 'comments_count' pour correspondre à ton Trigger SQL
                             setState(() {
                               int currentCount =
                                   int.tryParse(
@@ -1500,7 +1532,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   HapticFeedback.heavyImpact();
                   await _socialService.deletePost(post['id']);
                   Navigator.pop(context);
-                  _loadData(); // Rafraîchissement global
+                  _loadData();
                 },
               )
             else ...[

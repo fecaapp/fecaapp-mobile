@@ -3,86 +3,19 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-// Tes imports d'écrans
 import 'screens/auth_screen.dart';
-
-// Tes imports de Providers
 import 'providers/museum_provider.dart';
-
-// Ton fichier de configuration
 import 'config.dart';
-
-/// --- LE WIDGET DE LA BANNIÈRE ANIMÉE (SLIDE) ---
-class ConnectivityBanner extends StatelessWidget {
-  const ConnectivityBanner({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<List<ConnectivityResult>>(
-      stream: Connectivity().onConnectivityChanged,
-      builder: (context, snapshot) {
-        final connectivity = snapshot.data;
-        // Vérifie si on est hors-ligne
-        bool isOffline =
-            connectivity != null &&
-            connectivity.contains(ConnectivityResult.none);
-
-        // L'animation gère la position : 0 pour afficher, -110 pour cacher
-        return AnimatedPositioned(
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.fastOutSlowIn,
-          top: isOffline ? 0 : -110,
-          left: 0,
-          right: 0,
-          child: Material(
-            elevation: 10,
-            color: Colors.transparent,
-            child: Container(
-              width: double.infinity,
-              padding: EdgeInsets.only(
-                top: MediaQuery.of(context).padding.top + 10,
-                bottom: 12,
-              ),
-              decoration: const BoxDecoration(
-                color: Colors.redAccent,
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(15),
-                  bottomRight: Radius.circular(15),
-                ),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.wifi_off_rounded, color: Colors.white, size: 20),
-                  SizedBox(width: 12),
-                  Text(
-                    "CONNEXION PERDUE",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
+import 'widgets/connectivity_banner.dart'; // ← nouveau fichier
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialisation des dates (Français)
+  await dotenv.load(fileName: ".env");
   await initializeDateFormatting('fr_FR', null);
 
-  // Initialisation Supabase sécurisée via config.dart
   await Supabase.initialize(
     url: AppConfig.supabaseUrl,
     anonKey: AppConfig.supabaseAnonKey,
@@ -114,22 +47,18 @@ class FecaApp extends StatelessWidget {
         ),
       ),
 
-      // GESTION DE LA BANNIÈRE GLOBALE SUR TOUTE L'APP
-      builder: (context, child) {
-        return Stack(
-          children: [
-            child!, // L'application (Splash, Auth, etc.)
-            const ConnectivityBanner(), // La bannière animée par-dessus
-          ],
-        );
-      },
+      // ConnectivityWrapper enveloppe toute l'app
+      // Il gère : hors-ligne (rouge pulsant) + reconnecté (vert 2.5s)
+      builder: (context, child) => ConnectivityWrapper(child: child!),
 
       home: const SplashScreen(),
     );
   }
 }
 
-/// ================= SPLASH MEDIA SPORT MODERNE =================
+// ═══════════════════════════════════════════════════════════════
+// SPLASH SCREEN
+// ═══════════════════════════════════════════════════════════════
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});

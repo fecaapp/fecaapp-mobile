@@ -4,16 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FECAAPP - ELITE COMMAND v5.2 PRO</title>
-    
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Orbitron:wght@400;900&display=swap" rel="stylesheet">
-    
     <link rel="stylesheet" href="style.css">
 
     <script src="../config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
+
     <style>
-        /* Style additionnel pour la barre de sécurité Admin */
+        /* ── BARRE DE SÉCURITÉ ── */
         .admin-security-lock {
             background: #000;
             border-bottom: 2px solid #00D1FF;
@@ -21,41 +20,98 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             font-family: 'Orbitron', sans-serif;
             font-size: 11px;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 100;
+        }
+        .admin-security-lock .lock-label {
+            color: #00D1FF;
+            font-weight: 900;
+            letter-spacing: 1px;
         }
         .admin-security-lock input {
-            background: #111;
-            border: 1px solid #333;
+            background: #0d0d0d;
+            border: 1px solid #222;
             color: #00D1FF;
-            padding: 5px 10px;
-            border-radius: 4px;
+            padding: 7px 12px;
+            border-radius: 5px;
             outline: none;
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            width: 180px;
+            transition: border-color 0.2s;
+            margin: 0;
         }
-        .admin-security-lock button {
+        .admin-security-lock input:focus { border-color: #00D1FF; }
+        .admin-security-lock input::placeholder { color: #333; }
+
+        .btn-login {
             background: #00D1FF;
             color: #000;
             border: none;
-            padding: 5px 15px;
-            border-radius: 4px;
-            font-weight: bold;
+            padding: 7px 18px;
+            border-radius: 5px;
+            font-weight: 900;
             cursor: pointer;
             text-transform: uppercase;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px;
+            letter-spacing: 1px;
+            transition: all 0.2s;
         }
-        #auth-msg { margin-left: 10px; font-weight: bold; }
+        .btn-login:hover { background: #00f0ff; transform: translateY(-1px); }
+
+        .btn-logout {
+            background: transparent;
+            color: #FF3131;
+            border: 1px solid #FF3131;
+            padding: 7px 14px;
+            border-radius: 5px;
+            font-weight: 900;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 9px;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+            display: none;
+        }
+        .btn-logout:hover { background: rgba(255,49,49,0.1); }
+        .btn-logout.visible { display: inline-block; }
+
+        #auth-msg {
+            font-weight: 900;
+            font-size: 10px;
+            letter-spacing: 1px;
+            color: #444;
+            min-width: 220px;
+        }
+
+        /* Interface cachée par défaut — JS la déverrouille après auth */
+        .main-layout  { display: none; }
+        .header       { opacity: 0.3; pointer-events: none; transition: opacity 0.4s; }
     </style>
 </head>
 <body>
 
+<!-- ══ BARRE SÉCURITÉ ADMIN ══════════════════════════════════════════════ -->
 <div class="admin-security-lock">
-    <span style="color: #00D1FF;">[ SÉCURITÉ ADMIN ]</span>
-    <input type="email" id="admin-email" placeholder="Email Command">
-    <input type="password" id="admin-password" placeholder="Clé d'accès">
-    <button onclick="loginAdmin()">DÉVERROUILLER LE SYSTÈME</button>
-    <span id="auth-msg" style="color: #666;">SYSTÈME VERROUILLÉ</span>
+    <span class="lock-label">[ SÉCURITÉ ADMIN ]</span>
+
+    <input type="email"    id="admin-email"    placeholder="Email administrateur">
+    <input type="password" id="admin-password" placeholder="Clé d'accès"
+           onkeydown="if(event.key==='Enter') loginAdmin()">
+
+    <button class="btn-login"  onclick="loginAdmin()">🔓 DÉVERROUILLER</button>
+    <button class="btn-logout" id="btn-logout" onclick="logoutAdmin()">🔒 SE DÉCONNECTER</button>
+
+    <span id="auth-msg">🔒 SYSTÈME VERROUILLÉ</span>
 </div>
 
+<!-- ══ HEADER ════════════════════════════════════════════════════════════ -->
 <div class="header">
     <div class="logo-area">
         <div class="feca-badge">PRO</div>
@@ -64,18 +120,23 @@
     <div id="status-io">📡 SIGNAL LIVE DÉCONNECTÉ</div>
 </div>
 
+<!-- ══ LAYOUT PRINCIPAL (masqué jusqu'à connexion réussie) ═══════════════ -->
 <div class="main-layout">
+
     <div class="side-panel">
-        
+
+        <!-- PILOTAGE -->
         <div class="match-card side-card blue-border">
             <h3><span class="icon">📡</span> PILOTAGE DIRECT</h3>
             <label for="matchSelector">Match à piloter</label>
             <select id="matchSelector">
                 <option value="">Chargement des matchs...</option>
             </select>
-            <button class="btn btn-blue full-width" onclick="addMatchToRegie()">LANCER LA RÉGIE</button>
+            <button class="btn btn-blue full-width" style="margin-top:10px"
+                    onclick="addMatchToRegie()">LANCER LA RÉGIE</button>
         </div>
-        
+
+        <!-- CLASSEMENT -->
         <div class="match-card side-card yellow-border">
             <h3><span class="icon">🏆</span> CLASSEMENT</h3>
             <label>Nom de la Compétition</label>
@@ -84,51 +145,51 @@
             <input type="text" id="configTeamName" placeholder="Nom du Club">
             <label>URL Logo Club</label>
             <input type="text" id="configTeamLogo" placeholder="https://...">
-            <button class="btn btn-yellow full-width black-text" onclick="addTeamToStandings()">AJOUTER AU CLASSEMENT</button>
+            <button class="btn btn-yellow full-width black-text" style="margin-top:10px"
+                    onclick="addTeamToStandings()">AJOUTER AU CLASSEMENT</button>
         </div>
 
+        <!-- PROGRAMMATION -->
         <div class="match-card side-card green-border">
             <h3><span class="icon">📅</span> PROGRAMMATION</h3>
             <label>Compétition (doit déjà exister)</label>
             <input type="text" id="setupLeague" placeholder="Ex: ELITE ONE">
-            
             <label>URL Logo Compétition</label>
             <input type="text" id="setupLeagueLogo" placeholder="https://...">
-            
             <label>Genre</label>
             <select id="setupGender">
                 <option value="Masculin">MASCULIN</option>
                 <option value="Féminin">FÉMININ</option>
             </select>
-            
-            <label>Journée / Stade / Heure</label>
+            <label>Journée</label>
             <input type="text" id="setupJournee" placeholder="Ex: J11">
+            <label>Stade</label>
             <input type="text" id="setupStadium" placeholder="Nom du Stade">
+            <label>Date & Heure</label>
             <input type="datetime-local" id="setupTime">
-            
             <div class="setup-teams-grid">
                 <div>
                     <label>Équipe A</label>
                     <input type="text" id="setupA" placeholder="Nom A">
-                    <input type="text" id="logoA" placeholder="URL Logo A">
+                    <input type="text" id="logoA"  placeholder="URL Logo A">
                 </div>
                 <div class="vs-divider">VS</div>
                 <div>
                     <label>Équipe B</label>
                     <input type="text" id="setupB" placeholder="Nom B">
-                    <input type="text" id="logoB" placeholder="URL Logo B">
+                    <input type="text" id="logoB"  placeholder="URL Logo B">
                 </div>
             </div>
-            
-            <button class="btn btn-green full-width" onclick="createNewMatch()">ENREGISTRER EN BASE</button>
+            <button class="btn btn-green full-width" style="margin-top:10px"
+                    onclick="createNewMatch()">ENREGISTRER EN BASE</button>
         </div>
-    </div>
-    
-    <div id="regieContainer" class="regie-main-area">
-        </div>
-</div>
+
+    </div><!-- /side-panel -->
+
+    <div id="regieContainer" class="regie-main-area"></div>
+
+</div><!-- /main-layout -->
 
 <script src="script.js"></script>
-
 </body>
 </html>

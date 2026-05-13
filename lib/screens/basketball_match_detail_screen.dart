@@ -16,9 +16,11 @@ class _BasketballMatchDetailScreenState
   final SupabaseClient supabase = Supabase.instance.client;
   Map<String, dynamic>? matchData;
   bool isLoading = true;
-  int activeTab = 0; // 0: STATS, 1: JOUEURS
+  int activeTab = 0;
   Timer? _countDownTimer;
-  int _currentSeconds = 720; // 12 minutes par défaut
+  int _currentSeconds = 720;
+
+  static const Color _sportColor = Color(0xFFFFA500);
 
   @override
   void initState() {
@@ -45,9 +47,10 @@ class _BasketballMatchDetailScreenState
 
   void _parseTime(String? timeStr) {
     if (timeStr == null) return;
-    List<String> parts = timeStr.split(':');
+    final parts = timeStr.split(':');
     if (parts.length == 2) {
-      _currentSeconds = (int.parse(parts[0]) * 60) + int.parse(parts[1]);
+      _currentSeconds =
+          (int.tryParse(parts[0]) ?? 0) * 60 + (int.tryParse(parts[1]) ?? 0);
     }
   }
 
@@ -59,10 +62,10 @@ class _BasketballMatchDetailScreenState
           matchData?['is_timer_active'] == true) {
         setState(() {
           _currentSeconds--;
-          int mins = _currentSeconds ~/ 60;
-          int secs = _currentSeconds % 60;
+          final mins = _currentSeconds ~/ 60;
+          final secs = _currentSeconds % 60;
           matchData!['time'] =
-              "${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}";
+              '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
         });
       }
     });
@@ -97,6 +100,23 @@ class _BasketballMatchDetailScreenState
         .subscribe();
   }
 
+  // ── Parser robuste pour lineup (String ou List) ────────────────
+  List<String> _parseLineup(dynamic raw) {
+    if (raw == null) return [];
+    // Déjà une liste
+    if (raw is List) return raw.map((e) => e.toString()).toList();
+    // String séparée par virgules (venant du textarea dashboard)
+    if (raw is String) {
+      if (raw.trim().isEmpty) return [];
+      return raw
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+    return [];
+  }
+
   @override
   void dispose() {
     _countDownTimer?.cancel();
@@ -109,7 +129,7 @@ class _BasketballMatchDetailScreenState
       return const Scaffold(
         backgroundColor: Colors.black,
         body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF00FF85)),
+          child: CircularProgressIndicator(color: Color(0xFFFFA500)),
         ),
       );
     }
@@ -119,11 +139,15 @@ class _BasketballMatchDetailScreenState
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Text(
           matchData!['league_name']?.toString().toUpperCase() ??
-              "ÉLITE BASKETBALL",
+              'ÉLITE BASKETBALL',
           style: const TextStyle(
-            color: Color(0xFF00FF85),
+            color: _sportColor,
             fontSize: 12,
             fontWeight: FontWeight.w900,
             letterSpacing: 2,
@@ -143,19 +167,28 @@ class _BasketballMatchDetailScreenState
   }
 
   Widget _buildScoreHeader() {
-    bool isLive = matchData!['is_timer_active'] == true;
+    final bool isLive = matchData!['is_timer_active'] == true;
+    final bool isLocked = matchData!['is_locked'] == true;
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A0A0A),
+        border: Border(bottom: BorderSide(color: _sportColor.withOpacity(0.1))),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _teamInfo(matchData!['team1_name'], matchData!['team1_logo']),
+          _teamInfo(
+            matchData!['team_a_name'] ?? matchData!['team1_name'],
+            matchData!['team_a_logo'] ?? matchData!['team1_logo'],
+          ),
           Column(
             children: [
               Text(
-                "${matchData!['score1']} - ${matchData!['score2']}",
-                style: const TextStyle(
-                  color: Colors.white,
+                '${matchData!['score1'] ?? 0} - ${matchData!['score2'] ?? 0}',
+                style: TextStyle(
+                  color: isLocked ? Colors.white38 : Colors.white,
                   fontSize: 48,
                   fontWeight: FontWeight.w900,
                 ),
@@ -166,18 +199,16 @@ class _BasketballMatchDetailScreenState
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: isLive
-                      ? const Color(0xFF00FF85).withOpacity(0.1)
-                      : Colors.white10,
+                  color: isLive ? _sportColor.withOpacity(0.1) : Colors.white10,
                   borderRadius: BorderRadius.circular(5),
                   border: Border.all(
-                    color: isLive ? const Color(0xFF00FF85) : Colors.white24,
+                    color: isLive ? _sportColor : Colors.white24,
                   ),
                 ),
                 child: Text(
-                  matchData!['time'] ?? "12:00",
+                  matchData!['time'] ?? '12:00',
                   style: TextStyle(
-                    color: isLive ? const Color(0xFF00FF85) : Colors.white,
+                    color: isLive ? _sportColor : Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
@@ -185,7 +216,7 @@ class _BasketballMatchDetailScreenState
               ),
               const SizedBox(height: 5),
               Text(
-                matchData!['status']?.toString().toUpperCase() ?? "1ER QUART",
+                matchData!['status']?.toString().toUpperCase() ?? '1ER QUART',
                 style: const TextStyle(
                   color: Colors.white38,
                   fontSize: 10,
@@ -194,7 +225,10 @@ class _BasketballMatchDetailScreenState
               ),
             ],
           ),
-          _teamInfo(matchData!['team2_name'], matchData!['team2_logo']),
+          _teamInfo(
+            matchData!['team_b_name'] ?? matchData!['team2_name'],
+            matchData!['team_b_logo'] ?? matchData!['team2_logo'],
+          ),
         ],
       ),
     );
@@ -205,15 +239,36 @@ class _BasketballMatchDetailScreenState
       width: 80,
       child: Column(
         children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: Colors.white10,
-            backgroundImage: logo != null ? NetworkImage(logo) : null,
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: _sportColor.withOpacity(0.3),
+                width: 1.5,
+              ),
+            ),
+            child: CircleAvatar(
+              backgroundColor: const Color(0xFF1A1A1A),
+              backgroundImage: (logo != null && logo.isNotEmpty)
+                  ? NetworkImage(logo)
+                  : null,
+              child: (logo == null || logo.isEmpty)
+                  ? const Icon(
+                      Icons.sports_basketball,
+                      color: Colors.white24,
+                      size: 24,
+                    )
+                  : null,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
-            name?.toUpperCase() ?? "TEAM",
+            name?.toUpperCase() ?? 'TEAM',
             textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 10,
@@ -226,10 +281,17 @@ class _BasketballMatchDetailScreenState
   }
 
   Widget _buildQuarterTable() {
-    final q1 = matchData!['q1'] ?? [0, 0];
-    final q2 = matchData!['q2'] ?? [0, 0];
-    final q3 = matchData!['q3'] ?? [0, 0];
-    final q4 = matchData!['q4'] ?? [0, 0];
+    // Parser robuste pour les quarts (peuvent être List ou Map)
+    List<dynamic> parseQ(dynamic raw) {
+      if (raw == null) return [0, 0];
+      if (raw is List) return raw.length >= 2 ? raw : [0, 0];
+      return [0, 0];
+    }
+
+    final q1 = parseQ(matchData!['q1']);
+    final q2 = parseQ(matchData!['q2']);
+    final q3 = parseQ(matchData!['q3']);
+    final q4 = parseQ(matchData!['q4']);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -237,18 +299,19 @@ class _BasketballMatchDetailScreenState
       decoration: BoxDecoration(
         color: const Color(0xFF0D0D0D),
         borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: _sportColor.withOpacity(0.1)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _qCol("Q1", q1[0], q1[1]),
-          _qCol("Q2", q2[0], q2[1]),
-          _qCol("Q3", q3[0], q3[1]),
-          _qCol("Q4", q4[0], q4[1]),
+          _qCol('Q1', q1[0], q1[1]),
+          _qCol('Q2', q2[0], q2[1]),
+          _qCol('Q3', q3[0], q3[1]),
+          _qCol('Q4', q4[0], q4[1]),
           _qCol(
-            "TOT",
-            matchData!['score1'],
-            matchData!['score2'],
+            'TOT',
+            matchData!['score1'] ?? 0,
+            matchData!['score2'] ?? 0,
             isBold: true,
           ),
         ],
@@ -269,17 +332,19 @@ class _BasketballMatchDetailScreenState
         ),
         const SizedBox(height: 5),
         Text(
-          "$s1",
+          '$s1',
           style: TextStyle(
-            color: isBold ? const Color(0xFF00FF85) : Colors.white70,
+            color: isBold ? _sportColor : Colors.white70,
             fontWeight: FontWeight.w900,
+            fontSize: isBold ? 14 : 12,
           ),
         ),
         Text(
-          "$s2",
+          '$s2',
           style: TextStyle(
-            color: isBold ? const Color(0xFF00FF85) : Colors.white70,
+            color: isBold ? _sportColor : Colors.white70,
             fontWeight: FontWeight.w900,
+            fontSize: isBold ? 14 : 12,
           ),
         ),
       ],
@@ -287,7 +352,7 @@ class _BasketballMatchDetailScreenState
   }
 
   Widget _buildTabs() {
-    List<String> tabs = ["STATS", "JOUEURS"];
+    const tabs = ['STATS', 'JOUEURS'];
     return Container(
       height: 40,
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
@@ -296,36 +361,29 @@ class _BasketballMatchDetailScreenState
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
-        children: tabs
-            .asMap()
-            .entries
-            .map(
-              (e) => Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => activeTab = e.key),
-                  child: Container(
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: activeTab == e.key
-                          ? const Color(0xFF00FF85)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      e.value,
-                      style: TextStyle(
-                        color: activeTab == e.key
-                            ? Colors.black
-                            : Colors.white38,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+        children: tabs.asMap().entries.map((e) {
+          final isActive = activeTab == e.key;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => activeTab = e.key),
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isActive ? _sportColor : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  e.value,
+                  style: TextStyle(
+                    color: isActive ? Colors.black : Colors.white38,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
-            )
-            .toList(),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -337,8 +395,13 @@ class _BasketballMatchDetailScreenState
   }
 
   Widget _buildLineup() {
-    final List<dynamic> lineup1 = matchData!['lineup1'] ?? [];
-    final List<dynamic> lineup2 = matchData!['lineup2'] ?? [];
+    // ✅ FIX : parser robuste — accepte String ou List
+    final List<String> lineup1 = _parseLineup(
+      matchData!['lineup1'] ?? matchData!['lineup_a'],
+    );
+    final List<String> lineup2 = _parseLineup(
+      matchData!['lineup2'] ?? matchData!['lineup_b'],
+    );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -347,15 +410,15 @@ class _BasketballMatchDetailScreenState
         children: [
           Expanded(
             child: _playerListColumn(
-              matchData!['team1_name'],
+              matchData!['team_a_name'] ?? matchData!['team1_name'],
               lineup1,
-              const Color(0xFF00FF85),
+              _sportColor,
             ),
           ),
           const SizedBox(width: 20),
           Expanded(
             child: _playerListColumn(
-              matchData!['team2_name'],
+              matchData!['team_b_name'] ?? matchData!['team2_name'],
               lineup2,
               Colors.white,
             ),
@@ -367,21 +430,26 @@ class _BasketballMatchDetailScreenState
 
   Widget _playerListColumn(
     String? teamName,
-    List<dynamic> players,
+    List<String> players,
     Color color,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          teamName?.toUpperCase() ?? "ÉQUIPE",
+          teamName?.toUpperCase() ?? 'ÉQUIPE',
           style: TextStyle(
             color: color,
             fontSize: 12,
             fontWeight: FontWeight.w900,
           ),
         ),
-        const Divider(color: Colors.white10),
+        Divider(color: color.withOpacity(0.2)),
+        if (players.isEmpty)
+          Text(
+            'Aucun joueur',
+            style: TextStyle(color: color.withOpacity(0.3), fontSize: 11),
+          ),
         ...players.map(
           (p) => Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
@@ -393,23 +461,9 @@ class _BasketballMatchDetailScreenState
                   color: color.withOpacity(0.7),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  width: 24,
-                  height: 24,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: color.withOpacity(0.5)),
-                  ),
-                  child: const Text(
-                    "N°",
-                    style: TextStyle(color: Colors.white38, fontSize: 8),
-                  ),
-                ),
-                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    p.toString(),
+                    p,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13,
@@ -426,7 +480,13 @@ class _BasketballMatchDetailScreenState
   }
 
   Widget _buildStats() {
-    final stats = matchData!['stats'] ?? {};
+    final stats = matchData!['stats'];
+    // Parser robuste pour les stats
+    Map<String, dynamic> statsMap = {};
+    if (stats is Map) {
+      statsMap = Map<String, dynamic>.from(stats);
+    }
+
     final rows = [
       {'key': '3pts', 'label': 'TIRS À 3 POINTS'},
       {'key': '2pts', 'label': 'TIRS À 2 POINTS'},
@@ -439,13 +499,14 @@ class _BasketballMatchDetailScreenState
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 25),
       children: rows.map((s) {
-        final val = stats[s['key']] ?? [0, 0];
-        double total =
-            (double.tryParse(val[0].toString()) ?? 0) +
-            (double.tryParse(val[1].toString()) ?? 0);
-        double ratio = total == 0
-            ? 0.5
-            : (double.tryParse(val[0].toString()) ?? 0) / total;
+        final raw = statsMap[s['key']];
+        final List<dynamic> val = (raw is List && raw.length >= 2)
+            ? raw
+            : [0, 0];
+        final double v0 = double.tryParse(val[0].toString()) ?? 0;
+        final double v1 = double.tryParse(val[1].toString()) ?? 0;
+        final double total = v0 + v1;
+        final double ratio = total == 0 ? 0.5 : v0 / total;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 20),
@@ -455,7 +516,7 @@ class _BasketballMatchDetailScreenState
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    "${val[0]}",
+                    '${val[0]}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
@@ -470,7 +531,7 @@ class _BasketballMatchDetailScreenState
                     ),
                   ),
                   Text(
-                    "${val[1]}",
+                    '${val[1]}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
@@ -482,7 +543,7 @@ class _BasketballMatchDetailScreenState
               LinearProgressIndicator(
                 value: ratio,
                 backgroundColor: Colors.white10,
-                color: const Color(0xFF00FF85),
+                color: _sportColor,
                 minHeight: 4,
               ),
             ],

@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FECAAPP - ATHLÉTISME ELITE COMMAND v5.3 PRO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../config.js"></script>
+    <style>
+        :root {
+            --primary: #FF6B00;
+            --primary-glow: rgba(255, 107, 0, 0.15);
+            --secondary: #FFD700;
+            --bg: #050505;
+            --bg2: #0D0D0D;
+            --bg3: #111111;
+            --border: rgba(255,255,255,0.07);
+            --text: #FFFFFF;
+            --text-dim: rgba(255,255,255,0.4);
+            --green: #00FF85;
+            --red: #FF3B3B;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); color: var(--text); font-family: 'Rajdhani', sans-serif; min-height: 100vh; }
+
+        /* ADMIN LOCK */
+        .admin-lock {
+            background: #000;
+            border-bottom: 2px solid var(--primary);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px;
+            flex-wrap: wrap;
+        }
+        .admin-lock input {
+            background: #111; border: 1px solid #333; color: var(--primary);
+            padding: 5px 10px; border-radius: 4px; outline: none;
+        }
+        .admin-lock button {
+            background: var(--primary); color: #000; border: none;
+            padding: 5px 15px; border-radius: 4px; font-weight: bold;
+            cursor: pointer; text-transform: uppercase; font-family: 'Orbitron', sans-serif;
+        }
+        #auth-msg { margin-left: 10px; font-weight: bold; }
+
+        /* HEADER */
+        .header {
+            background: linear-gradient(135deg, #0a0a0a 0%, #111 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo-area { display: flex; align-items: center; gap: 15px; }
+        .sport-badge {
+            background: var(--primary); color: #000;
+            padding: 4px 10px; border-radius: 4px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px; font-weight: 900;
+        }
+        .header h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px; font-weight: 900;
+            color: var(--primary); letter-spacing: 2px;
+        }
+        #status-io {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px; color: var(--text-dim);
+        }
+
+        /* MAIN LAYOUT */
+        .main-layout { display: flex; gap: 0; min-height: calc(100vh - 100px); }
+
+        /* SIDE PANEL */
+        .side-panel {
+            width: 310px; min-width: 310px;
+            background: var(--bg2);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            display: flex; flex-direction: column; gap: 15px;
+            overflow-y: auto;
+        }
+
+        .panel-card {
+            background: var(--bg3);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid var(--border);
+        }
+        .panel-card h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px; font-weight: 700;
+            margin-bottom: 12px; letter-spacing: 1px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .panel-card label {
+            display: block; font-size: 10px;
+            color: var(--text-dim); margin-bottom: 4px;
+            margin-top: 8px; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .panel-card input, .panel-card select {
+            width: 100%; background: #1a1a1a;
+            border: 1px solid var(--border); color: var(--text);
+            padding: 7px 10px; border-radius: 6px;
+            font-family: 'Rajdhani', sans-serif; font-size: 12px; outline: none;
+        }
+        .panel-card select option { background: #1a1a1a; }
+
+        /* Gender toggle buttons */
+        .gender-toggle {
+            display: flex; gap: 6px; margin-top: 4px;
+        }
+        .gender-btn {
+            flex: 1; padding: 6px 4px; border-radius: 5px;
+            border: 1px solid var(--border); cursor: pointer;
+            font-family: 'Orbitron', sans-serif; font-size: 9px;
+            font-weight: 700; text-transform: uppercase;
+            background: #1a1a1a; color: var(--text-dim);
+            transition: all 0.15s;
+        }
+        .gender-btn.active-masc  { background: rgba(255,107,0,0.15); color: var(--primary); border-color: var(--primary); }
+        .gender-btn.active-fem   { background: rgba(255,215,0,0.12); color: var(--secondary); border-color: var(--secondary); }
+        .gender-btn.active-mix   { background: rgba(0,255,133,0.1); color: var(--green); border-color: var(--green); }
+
+        .btn {
+            width: 100%; padding: 9px; border-radius: 6px;
+            border: none; cursor: pointer; font-family: 'Orbitron', sans-serif;
+            font-size: 10px; font-weight: 700; letter-spacing: 1px;
+            margin-top: 12px; text-transform: uppercase;
+            transition: opacity 0.15s;
+        }
+        .btn:hover { opacity: 0.85; }
+        .btn-orange { background: var(--primary); color: #000; }
+        .btn-gold   { background: var(--secondary); color: #000; }
+        .btn-green  { background: var(--green); color: #000; }
+        .btn-red    { background: var(--red); color: #fff; }
+
+        .orange-border { border-color: var(--primary) !important; }
+        .gold-border   { border-color: var(--secondary) !important; }
+        .green-border  { border-color: var(--green) !important; }
+
+        /* REGIE AREA */
+        .regie-area {
+            flex: 1; padding: 25px; overflow-y: auto;
+            background: var(--bg);
+        }
+        .regie-empty {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; height: 100%; gap: 15px;
+            color: var(--text-dim);
+        }
+        .regie-empty .icon-big { font-size: 60px; opacity: 0.3; }
+        .regie-empty p { font-family: 'Orbitron', sans-serif; font-size: 11px; letter-spacing: 2px; }
+
+        /* COMPÉTITION CARD */
+        .comp-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px; color: var(--primary); font-weight: 900;
+        }
+
+        /* PERFORMANCE TABLEAU */
+        .perf-table { width: 100%; border-collapse: collapse; }
+        .perf-table th {
+            text-align: left; padding: 8px 10px;
+            font-size: 9px; color: var(--text-dim);
+            font-weight: 700; text-transform: uppercase;
+            border-bottom: 1px solid var(--border);
+            font-family: 'Rajdhani', sans-serif; letter-spacing: 1px;
+        }
+        .perf-table td {
+            padding: 10px 10px; font-size: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            font-family: 'Rajdhani', sans-serif; font-weight: 600;
+        }
+        .perf-table tr:hover td { background: rgba(255,107,0,0.05); }
+        .perf-time {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 13px; font-weight: 700; color: var(--primary);
+        }
+        .perf-pb { font-size: 9px; color: var(--secondary); font-weight: 700; }
+        .perf-wr { font-size: 9px; color: var(--green); font-weight: 700; }
+
+        /* PHASE BADGE */
+        .phase-badge {
+            display: inline-block; padding: 2px 8px;
+            border-radius: 3px; font-size: 9px; font-weight: 700;
+            font-family: 'Orbitron', sans-serif;
+        }
+        .phase-finale  { background: rgba(255,215,0,0.15); color: var(--secondary); border: 1px solid var(--secondary); }
+        .phase-semi    { background: rgba(255,107,0,0.15); color: var(--primary); border: 1px solid var(--primary); }
+        .phase-series  { background: rgba(255,255,255,0.05); color: var(--text-dim); border: 1px solid var(--border); }
+
+        /* GENDER BADGE */
+        .gender-badge {
+            display: inline-block; padding: 2px 8px;
+            border-radius: 3px; font-size: 9px; font-weight: 700;
+            font-family: 'Orbitron', sans-serif; margin-left: 8px;
+        }
+        .gb-masc { background: rgba(255,107,0,0.12); color: var(--primary); border: 1px solid var(--primary); }
+        .gb-fem  { background: rgba(255,215,0,0.12); color: var(--secondary); border: 1px solid var(--secondary); }
+        .gb-mix  { background: rgba(0,255,133,0.1);  color: var(--green); border: 1px solid var(--green); }
+
+        /* NOTIFICATION */
+        .notif {
+            position: fixed; bottom: 20px; right: 20px;
+            background: var(--bg2); border: 1px solid var(--primary);
+            color: var(--text); padding: 12px 20px; border-radius: 8px;
+            font-family: 'Orbitron', sans-serif; font-size: 11px;
+            display: none; z-index: 1000;
+            animation: slideIn 0.2s ease;
+        }
+        @keyframes slideIn { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: var(--bg2); }
+        ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 2px; }
+    </style>
+</head>
+<body>
+
+<div class="admin-lock">
+    <span style="color:var(--primary);">[ SÉCURITÉ ADMIN ]</span>
+    <input type="email" id="admin-email" placeholder="Email Command">
+    <input type="password" id="admin-password" placeholder="Clé d'accès">
+    <button onclick="loginAdmin()">DÉVERROUILLER LE SYSTÈME</button>
+    <span id="auth-msg" style="color:#666;">SYSTÈME VERROUILLÉ</span>
+</div>
+
+<div class="header">
+    <div class="logo-area">
+        <div class="sport-badge">🏃 ATH</div>
+        <h1>FECAAPP — ATHLÉTISME ELITE COMMAND v5.3</h1>
+    </div>
+    <div id="status-io">📡 SIGNAL LIVE DÉCONNECTÉ</div>
+</div>
+
+<div class="main-layout">
+    <div class="side-panel">
+
+        <!-- ══ PILOTAGE ══ -->
+        <div class="panel-card orange-border">
+            <h3><span>📡</span> <span style="color:var(--primary);">PILOTAGE DIRECT</span></h3>
+            <label>Compétition à piloter</label>
+            <select id="compSelector">
+                <option value="">Chargement des compétitions...</option>
+            </select>
+            <label>Discipline</label>
+            <select id="disciplineSelector">
+                <!-- ✅ Valeurs normalisées = identiques à AthleticsStandingsScreen Flutter -->
+                <option value="100m">100m</option>
+                <option value="200m">200m</option>
+                <option value="400m">400m</option>
+                <option value="800m">800m</option>
+                <option value="1500m">1500m</option>
+                <option value="5000m">5000m</option>
+                <option value="10000m">10 000m</option>
+                <option value="MARATHON">Marathon</option>
+                <option value="110m HAIES">110m Haies</option>
+                <option value="400m HAIES">400m Haies</option>
+                <option value="3000m STEEPLE">3000m Steeple</option>
+                <option value="4×100m">4×100m Relais</option>
+                <option value="4×400m">4×400m Relais</option>
+                <option value="LONGUEUR">Saut en Longueur</option>
+                <option value="HAUTEUR">Saut en Hauteur</option>
+                <option value="PERCHE">Saut à la Perche</option>
+                <option value="TRIPLE SAUT">Triple Saut</option>
+                <option value="POIDS">Lancer du Poids</option>
+                <option value="DISQUE">Lancer du Disque</option>
+                <option value="JAVELOT">Lancer du Javelot</option>
+                <option value="MARTEAU">Lancer du Marteau</option>
+                <option value="HEPTATHLON">Heptathlon</option>
+                <option value="DÉCATHLON">Décathlon</option>
+            </select>
+            <label>Phase</label>
+            <select id="phaseSelector">
+                <option value="series">SÉRIES</option>
+                <option value="demi">DEMI-FINALES</option>
+                <option value="finale">FINALE</option>
+            </select>
+            <button class="btn btn-orange" onclick="lancerRegie()">▶ LANCER LA RÉGIE</button>
+            <button class="btn btn-red" onclick="cloturerCompetition()">⬛ CLÔTURER LA COURSE</button>
+        </div>
+
+        <!-- ══ SAISIE RÉSULTAT ══ -->
+        <div class="panel-card gold-border">
+            <h3><span>🏅</span> <span style="color:var(--secondary);">SAISIE RÉSULTAT</span></h3>
+            <label>Couloir / Dossard</label>
+            <input type="text" id="couloir" placeholder="Ex: 5 ou #123">
+            <label>Nom de l'Athlète</label>
+            <input type="text" id="athleteName" placeholder="NOM Prénom">
+            <label>Pays (code 3 lettres)</label>
+            <input type="text" id="athleteCountry" placeholder="CMR" maxlength="3" style="text-transform:uppercase">
+            <label>Performance</label>
+            <input type="text" id="athletePerf" placeholder="Ex: 9.87 ou 2:01.34 ou 8.45m">
+            <label>Vent (m/s)</label>
+            <input type="text" id="windSpeed" placeholder="Ex: +1.2 ou -0.5">
+            <div style="display:flex;gap:8px;margin-top:10px;">
+                <label style="margin:0;display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;">
+                    <input type="checkbox" id="isPB"> <span style="color:var(--secondary);">RP</span>
+                </label>
+                <label style="margin:0;display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;">
+                    <input type="checkbox" id="isWR"> <span style="color:var(--green);">RM</span>
+                </label>
+                <label style="margin:0;display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;">
+                    <input type="checkbox" id="isDNF"> <span style="color:var(--red);">DNF</span>
+                </label>
+            </div>
+            <button class="btn btn-gold" onclick="saveResult()">ENREGISTRER RÉSULTAT</button>
+        </div>
+
+        <!-- ══ NOUVELLE COMPÉTITION ══ -->
+        <div class="panel-card green-border">
+            <h3><span>📅</span> <span style="color:var(--green);">NOUVELLE COMPÉTITION</span></h3>
+            <label>Nom de la Compétition</label>
+            <input type="text" id="compName" placeholder="Ex: CHAMPIONNAT NATIONAL">
+            <label>Lieu / Stade</label>
+            <input type="text" id="compStadium" placeholder="Stade Omnisports">
+            <label>Date & Heure</label>
+            <input type="datetime-local" id="compTime">
+            <label>Type de piste</label>
+            <select id="trackType">
+                <option value="outdoor">OUTDOOR</option>
+                <option value="indoor">INDOOR</option>
+            </select>
+            <!-- ✅ FIX CRITIQUE : Sélecteur genre pour la compétition -->
+            <label>Genre</label>
+            <div class="gender-toggle" id="compGenderToggle">
+                <button class="gender-btn active-masc" data-val="Masculin" onclick="selectCompGender(this)">HOMMES</button>
+                <button class="gender-btn" data-val="Féminin" onclick="selectCompGender(this)">FEMMES</button>
+                <button class="gender-btn" data-val="Mixte" onclick="selectCompGender(this)">MIXTE</button>
+            </div>
+            <input type="hidden" id="compGender" value="Masculin">
+            <button class="btn btn-green" onclick="createCompetition()">+ CRÉER COMPÉTITION</button>
+        </div>
+
+    </div>
+
+    <div class="regie-area" id="regieContainer">
+        <div class="regie-empty">
+            <div class="icon-big">🏃</div>
+            <p>SÉLECTIONNEZ UNE COMPÉTITION</p>
+            <p style="font-size:9px;margin-top:8px;opacity:0.5;">Connectez-vous puis lancez la régie</p>
+        </div>
+    </div>
+</div>
+
+<div class="notif" id="notif"></div>
+
+<script>
+// ================================================================
+// FECAAPP — ATHLÉTISME ELITE COMMAND v5.3 PRO
+// ✅ Corrections v5.3 :
+//   1. Valeurs discipline normalisées (identiques à Flutter AthleticsStandingsScreen)
+//   2. Sélecteur gender ajouté (création + clôture)
+//   3. gender propagé dans matches + athletics_standings
+//   4. league_id inclus dans standings pour filtrage côté Flutter
+//   5. Realtime channel unique par compétition
+// ================================================================
+
+const sbClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+
+let currentUser    = null;
+let currentChannel = null;
+let currentCompId  = null;
+let currentGender  = 'Masculin'; // genre actif de la régie en cours
+
+// ── Utilitaire : récupérer ou créer une ligue ─────────────────────
+async function getOrCreateLeague(leagueName, gender = 'Masculin') {
+    let { data: league } = await sbClient
+        .from('leagues')
+        .select('id')
+        .eq('name', leagueName)
+        .eq('sport_type', 'athletics')
+        .maybeSingle();
+
+    if (!league) {
+        const { data: newL, error } = await sbClient
+            .from('leagues')
+            .insert([{ name: leagueName, sport_type: 'athletics', gender }])
+            .select()
+            .single();
+        if (error) throw error;
+        league = newL;
+    }
+    return league;
+}
+
+// ── Sélection genre pour la nouvelle compétition ─────────────────
+function selectCompGender(btn) {
+    document.querySelectorAll('#compGenderToggle .gender-btn').forEach(b => {
+        b.className = 'gender-btn';
+    });
+    const val = btn.dataset.val;
+    if (val === 'Masculin') btn.classList.add('active-masc');
+    else if (val === 'Féminin') btn.classList.add('active-fem');
+    else btn.classList.add('active-mix');
+    document.getElementById('compGender').value = val;
+}
+
+// ── Auth ──────────────────────────────────────────────────────────
+async function loginAdmin() {
+    const email    = document.getElementById('admin-email').value;
+    const password = document.getElementById('admin-password').value;
+    const msg      = document.getElementById('auth-msg');
+
+    msg.textContent = 'CONNEXION...';
+    const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
+
+    if (error) {
+        msg.style.color = '#FF3B3B';
+        msg.textContent = '❌ ACCÈS REFUSÉ';
+    } else {
+        currentUser = data.user;
+        msg.style.color = '#FF6B00';
+        msg.textContent = '✅ ACTIF — ' + email.split('@')[0].toUpperCase();
+        document.getElementById('status-io').innerHTML = '📡 SIGNAL LIVE CONNECTÉ';
+        document.getElementById('status-io').style.color = '#FF6B00';
+        loadCompetitions();
+    }
+}
+
+// ── Chargement compétitions (non clôturées, sport athletics) ─────
+async function loadCompetitions() {
+    const sel = document.getElementById('compSelector');
+    const { data, error } = await sbClient
+        .from('matches')
+        .select('id, league_id, leagues(name, gender), team_a_name')
+        .eq('sport_type', 'athletics')
+        .eq('is_locked', false)
+        .order('created_at', { ascending: false });
+
+    if (error || !data || data.length === 0) {
+        sel.innerHTML = '<option value="">Aucune compétition active</option>';
+        return;
+    }
+
+    sel.innerHTML = data.map(c => {
+        const name   = c.leagues?.name || c.team_a_name || 'Compétition';
+        const gender = c.leagues?.gender ? ` [${c.leagues.gender.substring(0,3).toUpperCase()}]` : '';
+        return `<option value="${c.id}">${name}${gender}</option>`;
+    }).join('');
+}
+
+// ── Lancer la régie ───────────────────────────────────────────────
+async function lancerRegie() {
+    const compId     = document.getElementById('compSelector').value;
+    const discipline = document.getElementById('disciplineSelector').value;
+    const phase      = document.getElementById('phaseSelector').value;
+
+    if (!compId) { showNotif('⚠️ Sélectionnez une compétition'); return; }
+
+    currentCompId = compId;
+
+    // Récupérer le genre de la compétition depuis leagues
+    const { data: matchInfo } = await sbClient
+        .from('matches')
+        .select('league_id, leagues(gender)')
+        .eq('id', compId)
+        .single();
+
+    currentGender = matchInfo?.leagues?.gender || 'Masculin';
+
+    // ✅ Écrire discipline + phase + is_timer_active → Flutter les lit en realtime
+    await sbClient.from('matches').update({
+        discipline:      discipline,
+        phase:           phase,
+        gender:          currentGender,
+        is_timer_active: true
+    }).eq('id', compId);
+
+    const { data } = await sbClient.from('matches').select('*, leagues(name, gender)').eq('id', compId).single();
+    if (data) {
+        renderRegie(data, discipline, phase);
+        subscribeRealtime(compId, discipline, phase);
+    } else {
+        showNotif('❌ Erreur récupération');
+    }
+}
+
+// ── Rendu régie ───────────────────────────────────────────────────
+function renderRegie(comp, discipline, phase) {
+    const results    = comp.athletics_results || [];
+    const phaseClass = phase === 'finale' ? 'phase-finale' : phase === 'demi' ? 'phase-semi' : 'phase-series';
+    const phaseLabel = phase === 'finale' ? 'FINALE' : phase === 'demi' ? 'DEMI-FINALES' : 'SÉRIES';
+    const gender     = comp.leagues?.gender || comp.gender || currentGender;
+    const gClass     = gender === 'Masculin' ? 'gb-masc' : gender === 'Féminin' ? 'gb-fem' : 'gb-mix';
+    const gLabel     = gender === 'Masculin' ? 'HOMMES' : gender === 'Féminin' ? 'FEMMES' : 'MIXTE';
+
+    document.getElementById('regieContainer').innerHTML = `
+        <div style="margin-bottom:20px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+            <div>
+                <div class="comp-title" style="font-size:16px;">${comp.leagues?.name || 'COMPÉTITION'}</div>
+                <div style="margin-top:6px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
+                    <span style="font-size:18px;font-weight:700;color:#fff;">${discipline}</span>
+                    <span class="phase-badge ${phaseClass}">${phaseLabel}</span>
+                    <span class="gender-badge ${gClass}">${gLabel}</span>
+                    <span style="font-size:10px;color:#444;margin-left:4px;">${results.length} ATHLÈTE(S)</span>
+                </div>
+            </div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:9px;color:#444;text-align:right;">
+                ID: ${comp.id?.substring(0,8)}…
+            </div>
+        </div>
+        <table class="perf-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>COULOIR</th>
+                    <th>ATHLÈTE</th>
+                    <th>PAYS</th>
+                    <th>PERFORMANCE</th>
+                    <th>VENT</th>
+                    <th>NOTE</th>
+                    <th>ACTION</th>
+                </tr>
+            </thead>
+            <tbody id="resultsBody">
+                ${results.length === 0 ? `
+                    <tr><td colspan="8" style="text-align:center;color:#333;padding:30px;font-family:'Orbitron',sans-serif;font-size:10px;">AUCUN RÉSULTAT — UTILISEZ LE PANNEAU DE SAISIE</td></tr>
+                ` : results.map((r, i) => `
+                    <tr>
+                        <td style="color:${r.dnf ? '#FF3B3B' : '#666'};">${r.dnf ? 'DNF' : i + 1}</td>
+                        <td style="color:#555;">${r.couloir || '—'}</td>
+                        <td><strong>${r.name || '—'}</strong></td>
+                        <td style="color:#888;">${r.country || '—'}</td>
+                        <td><span class="perf-time">${r.performance || '—'}</span></td>
+                        <td style="color:#444;font-size:11px;">${r.wind || '—'}</td>
+                        <td style="min-width:60px;">
+                            ${r.is_wr ? '<span class="perf-wr">RM</span> ' : ''}
+                            ${r.is_pb ? '<span class="perf-pb">RP</span> ' : ''}
+                            ${r.dnf   ? '<span style="color:#FF3B3B;font-size:9px;font-weight:900;">DNF</span>' : ''}
+                        </td>
+                        <td>
+                            <button onclick="deleteResult(${i})" style="background:#1a1a1a;border:1px solid #FF3B3B;color:#FF3B3B;padding:3px 8px;border-radius:3px;cursor:pointer;font-size:9px;font-family:'Orbitron',sans-serif;">✕</button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+// ── Realtime ──────────────────────────────────────────────────────
+function subscribeRealtime(compId, discipline, phase) {
+    if (currentChannel) sbClient.removeChannel(currentChannel);
+    currentChannel = sbClient
+        .channel(`ath_regie_${compId}`)
+        .on('postgres_changes', {
+            event: 'UPDATE', schema: 'public', table: 'matches',
+            filter: `id=eq.${compId}`
+        }, (payload) => renderRegie(payload.new, discipline, phase))
+        .subscribe();
+}
+
+// ── Enregistrer résultat ──────────────────────────────────────────
+async function saveResult() {
+    if (!currentCompId) { showNotif('⚠️ Lancez d\'abord une régie'); return; }
+
+    const name    = document.getElementById('athleteName').value.trim();
+    const country = document.getElementById('athleteCountry').value.trim().toUpperCase();
+    const perf    = document.getElementById('athletePerf').value.trim();
+
+    if (!name)  { showNotif('⚠️ Nom de l\'athlète requis'); return; }
+    if (!perf)  { showNotif('⚠️ Performance requise'); return; }
+
+    // ✅ Clés is_pb / is_wr cohérentes avec Flutter (AthleticsDetailScreen & StandingsScreen)
+    const result = {
+        name:        name,
+        country:     country,
+        performance: perf,
+        is_pb:       document.getElementById('isPB').checked,
+        is_wr:       document.getElementById('isWR').checked,
+        dnf:         document.getElementById('isDNF').checked,
+        wind:        document.getElementById('windSpeed').value.trim(),
+        couloir:     document.getElementById('couloir').value.trim()
+    };
+
+    const { data: match } = await sbClient
+        .from('matches').select('athletics_results').eq('id', currentCompId).single();
+    const existing = match?.athletics_results || [];
+    existing.push(result);
+
+    const { error } = await sbClient.from('matches').update({
+        athletics_results: existing,
+        score1: existing.filter(r => !r.dnf).length
+    }).eq('id', currentCompId);
+
+    if (!error) {
+        showNotif('✅ Résultat enregistré');
+        ['athleteName', 'athleteCountry', 'athletePerf', 'windSpeed', 'couloir'].forEach(id => {
+            document.getElementById(id).value = '';
+        });
+        ['isPB', 'isWR', 'isDNF'].forEach(id => {
+            document.getElementById(id).checked = false;
+        });
+        document.getElementById('athleteName').focus();
+    } else {
+        showNotif('❌ Erreur: ' + error.message);
+    }
+}
+
+// ── Supprimer un résultat ─────────────────────────────────────────
+async function deleteResult(index) {
+    if (!currentCompId) return;
+    if (!confirm('Supprimer ce résultat ?')) return;
+    const { data: match } = await sbClient
+        .from('matches').select('athletics_results').eq('id', currentCompId).single();
+    const results = match?.athletics_results || [];
+    results.splice(index, 1);
+    const { error } = await sbClient.from('matches').update({ athletics_results: results }).eq('id', currentCompId);
+    if (!error) showNotif('✅ Résultat supprimé');
+    else showNotif('❌ Erreur: ' + error.message);
+}
+
+// ── Clôturer la compétition ───────────────────────────────────────
+async function cloturerCompetition() {
+    if (!currentCompId) { showNotif('⚠️ Lancez d\'abord une régie'); return; }
+    if (!confirm('Clôturer ? Les résultats seront publiés dans le classement Flutter.')) return;
+
+    const { data: match } = await sbClient
+        .from('matches')
+        .select('athletics_results, league_id, leagues(gender)')
+        .eq('id', currentCompId)
+        .single();
+
+    const results    = match?.athletics_results || [];
+    const discipline = document.getElementById('disciplineSelector').value;
+
+    // ✅ FIX CRITIQUE : gender issu de la ligue (pas hardcodé)
+    const gender = match?.leagues?.gender || currentGender || 'Masculin';
+
+    if (results.length === 0) { showNotif('⚠️ Aucun résultat à publier'); return; }
+
+    // ✅ Clés cohérentes Flutter : is_pb, is_wr, athlete_name, league_id, discipline, gender
+    const records = results.map((r, i) => ({
+        match_id:     currentCompId,
+        league_id:    match.league_id,          // ✅ pour filtrage par ligue côté Flutter
+        athlete_name: r.name,
+        country:      r.country,
+        performance:  r.performance,
+        wind:         r.wind   || null,
+        rank:         r.dnf    ? 999 : i + 1,
+        is_pb:        r.is_pb  || false,         // ✅ cohérent Flutter
+        is_wr:        r.is_wr  || false,         // ✅ cohérent Flutter
+        dnf:          r.dnf    || false,
+        discipline:   discipline,                // ✅ valeur normalisée = identique Flutter
+        gender:       gender                     // ✅ dynamique, pas hardcodé
+    }));
+
+    const { error } = await sbClient.from('athletics_standings').insert(records);
+
+    if (!error) {
+        await sbClient.from('matches').update({
+            is_locked:       true,
+            is_timer_active: false,
+            status:          'TERMINÉ'
+        }).eq('id', currentCompId);
+
+        showNotif(`✅ ${results.length} résultat(s) publiés ! [${gender} — ${discipline}]`);
+        currentCompId = null;
+        currentChannel && sbClient.removeChannel(currentChannel);
+        loadCompetitions();
+        document.getElementById('regieContainer').innerHTML = `
+            <div class="regie-empty">
+                <div class="icon-big">🏁</div>
+                <p>COURSE CLÔTURÉE — RÉSULTATS PUBLIÉS</p>
+            </div>`;
+    } else {
+        showNotif('❌ Erreur publication: ' + error.message);
+    }
+}
+
+// ── Créer une compétition ─────────────────────────────────────────
+async function createCompetition() {
+    const compName  = document.getElementById('compName').value.trim();
+    const stadium   = document.getElementById('compStadium').value.trim();
+    const compTime  = document.getElementById('compTime').value;
+    const trackType = document.getElementById('trackType').value;
+    // ✅ FIX CRITIQUE : genre depuis le sélecteur (plus hardcodé à 'Masculin')
+    const gender    = document.getElementById('compGender').value;
+
+    if (!compName) { showNotif('⚠️ Nom de la compétition requis'); return; }
+
+    try {
+        // Créer ou récupérer la ligue avec le bon genre
+        const league = await getOrCreateLeague(compName, gender);
+
+        const { error } = await sbClient.from('matches').insert({
+            league_id:         league.id,
+            sport_type:        'athletics',
+            match_time:        compTime ? new Date(compTime).toISOString() : null,
+            stadium:           stadium,
+            track_type:        trackType,
+            gender:            gender,           // ✅ propagé dans matches
+            athletics_results: [],
+            score1:            0,
+            score2:            0,
+            status:            'EN ATTENTE',
+            is_locked:         false,
+            is_timer_active:   false
+        });
+
+        if (!error) {
+            showNotif(`✅ Compétition créée [${gender}] !`);
+            loadCompetitions();
+            document.getElementById('compName').value    = '';
+            document.getElementById('compStadium').value = '';
+            document.getElementById('compTime').value    = '';
+        } else {
+            showNotif('❌ Erreur: ' + error.message);
+        }
+    } catch (e) {
+        showNotif('❌ ' + e.message);
+    }
+}
+
+// ── Notification ──────────────────────────────────────────────────
+function showNotif(msg) {
+    const n = document.getElementById('notif');
+    n.textContent = msg;
+    n.style.display = 'block';
+    clearTimeout(n._timer);
+    n._timer = setTimeout(() => n.style.display = 'none', 3500);
+}
+
+// ── Raccourci clavier Enter pour saisie rapide ────────────────────
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && document.activeElement?.id === 'athletePerf') {
+        saveResult();
+    }
+    if (e.key === 'Enter' && document.activeElement?.id === 'admin-password') {
+        loginAdmin();
+    }
+});
+</script>
+</body>
+</html>

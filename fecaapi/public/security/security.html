@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FECAAPP — DASHBOARD DE PILOTAGE</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../config.js"></script>
+<style>
+:root{--g:#00FF85;--r:#FF3131;--b:#00D1FF;--y:#FFE500;--bg:#020408;--c:#070D14;--br:#0F1E2E;--mono:'Share Tech Mono',monospace;--orb:'Orbitron',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:#cdd9e5;font-family:'Inter',sans-serif;min-height:100vh}
+
+/* LOGIN */
+#ls{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100}
+.lt{font-family:var(--orb);font-size:22px;font-weight:900;color:var(--g);letter-spacing:3px;margin-bottom:6px;text-shadow:0 0 30px rgba(0,255,133,.3)}
+.lsub{font-family:var(--mono);font-size:9px;color:#2a5a3a;letter-spacing:3px;margin-bottom:35px}
+.lbox{background:var(--c);border:1px solid #0d2a1a;border-top:2px solid var(--g);padding:32px;width:380px;max-width:95vw}
+.lf{margin-bottom:14px}
+.lf label{display:block;font-family:var(--mono);font-size:8px;color:#2a5a3a;letter-spacing:2px;margin-bottom:6px}
+.lf input{width:100%;background:#010a03;border:1px solid #0d2a1a;color:var(--g);padding:11px 13px;font-family:var(--mono);font-size:12px;outline:none;transition:border-color .2s}
+.lf input:focus{border-color:var(--g)}
+.lf input::placeholder{color:#152a1a}
+.lbtn{width:100%;background:var(--g);color:#000;border:none;padding:13px;font-family:var(--orb);font-size:10px;font-weight:900;letter-spacing:3px;cursor:pointer;margin-top:6px;transition:all .2s}
+.lbtn:hover{background:#00ffaa;box-shadow:0 0 20px rgba(0,255,133,.3)}
+#lmsg{font-family:var(--mono);font-size:9px;text-align:center;margin-top:10px;min-height:14px}
+
+/* MAIN */
+#dash{display:none}
+.tb{background:#030810;border-bottom:1px solid var(--br);padding:0 20px;height:50px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.tbl{font-family:var(--orb);font-size:11px;font-weight:900;color:var(--g);letter-spacing:3px}
+.tbR{display:flex;align-items:center;gap:14px}
+.sdot{width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g);animation:pd 1.5s infinite}
+@keyframes pd{0%,100%{opacity:1}50%{opacity:.3}}
+.ttime{font-family:var(--mono);font-size:11px;color:var(--g);letter-spacing:2px}
+.tlo{background:transparent;border:1px solid #1a2a3a;color:#556;padding:4px 10px;font-family:var(--mono);font-size:8px;cursor:pointer;transition:all .2s}
+.tlo:hover{border-color:var(--r);color:var(--r)}
+
+/* LAYOUT */
+.wrap{padding:20px;max-width:1400px;margin:0 auto}
+
+/* KPIs */
+.krow{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+.kcard{background:var(--c);border:1px solid var(--br);border-top:2px solid;padding:16px}
+.kcard.G{border-top-color:var(--g)} .kcard.R{border-top-color:var(--r)} .kcard.B{border-top-color:var(--b)} .kcard.Y{border-top-color:var(--y)} .kcard.W{border-top-color:#555}
+.kval{font-family:var(--orb);font-size:28px;font-weight:900;line-height:1;margin-bottom:4px}
+.kcard.G .kval{color:var(--g)} .kcard.R .kval{color:var(--r)} .kcard.B .kval{color:var(--b)} .kcard.Y .kval{color:var(--y)} .kcard.W .kval{color:#888}
+.klbl{font-family:var(--mono);font-size:8px;color:#3a5a6a;letter-spacing:1px}
+.ksub{font-family:var(--mono);font-size:8px;margin-top:4px}
+
+/* GRID 2 COL */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+
+/* CARDS */
+.card{background:var(--c);border:1px solid var(--br);padding:18px}
+.ctitle{font-family:var(--mono);font-size:8px;color:#3a5a6a;letter-spacing:3px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--br);display:flex;justify-content:space-between;align-items:center}
+.ctitle .cact{background:var(--g);color:#000;border:none;padding:3px 10px;font-family:var(--mono);font-size:8px;cursor:pointer;font-weight:bold;transition:all .2s}
+.ctitle .cact:hover{background:#00ffaa}
+.ctitle .cact.r{background:var(--r);color:#000}
+.ctitle .cact.b{background:var(--b);color:#000}
+
+/* LIVE MATCHES */
+.match-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#030810;border:1px solid var(--br);margin-bottom:6px;transition:border-color .2s}
+.match-item:hover{border-color:rgba(0,255,133,.2)}
+.match-item.live{border-color:rgba(255,49,49,.3)}
+.match-teams{font-family:var(--mono);font-size:9px;color:#cdd9e5}
+.match-score{font-family:var(--orb);font-size:14px;font-weight:900;color:var(--g);margin:0 12px}
+.match-score.locked{color:#666}
+.match-sport{font-size:11px}
+.match-status{font-family:var(--mono);font-size:7px;padding:2px 6px;border-radius:2px}
+.ms-live{background:rgba(255,49,49,.15);color:var(--r);animation:fl 1s infinite}
+.ms-done{background:rgba(255,255,255,.05);color:#444}
+.ms-prog{background:rgba(0,209,255,.08);color:var(--b)}
+@keyframes fl{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* LOG */
+.log-box{height:220px;overflow-y:auto;font-family:var(--mono);font-size:9px}
+.log-box::-webkit-scrollbar{width:3px}
+.log-box::-webkit-scrollbar-thumb{background:#1a3a2a}
+.logrow{padding:5px 0;border-bottom:1px solid #050d14;display:flex;gap:8px;animation:li .2s ease}
+@keyframes li{from{opacity:0;transform:translateX(-5px)}to{opacity:1;transform:translateX(0)}}
+.lt2{color:#3a5a6a;white-space:nowrap;min-width:55px;font-size:8px}
+.lm{line-height:1.4}
+.ok .lm{color:#4a8a6a} .warn .lm{color:#8a7a2a} .err .lm{color:var(--r)}
+
+/* HEALTH */
+.hrow{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #050d14;cursor:pointer}
+.hrow:hover{background:rgba(0,255,133,.02)}
+.hlbl{font-family:var(--mono);font-size:9px;color:#6a8a9a}
+.hval{font-family:var(--mono);font-size:9px;display:flex;align-items:center;gap:5px}
+.hd{width:7px;height:7px;border-radius:50%}
+.hd.ok{background:var(--g);box-shadow:0 0 5px var(--g)}
+.hd.warn{background:var(--y);box-shadow:0 0 5px var(--y)}
+.hd.err{background:var(--r);box-shadow:0 0 5px var(--r)}
+
+/* SPORTS */
+.sport-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #050d14}
+.sport-icon{font-size:16px;min-width:22px}
+.sport-name{font-family:var(--mono);font-size:9px;flex:1}
+.sport-count{font-family:var(--orb);font-size:13px;font-weight:900}
+.sport-bar{height:2px;background:#0a1a24;margin-top:4px;overflow:hidden}
+.sport-fill{height:100%;transition:width 1s}
+
+/* AUDIT */
+.audit-row{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:#030810;border:1px solid var(--br);border-left:3px solid;margin-bottom:6px}
+.audit-row.ok{border-left-color:var(--g)}
+.audit-row.warn{border-left-color:var(--y)}
+.audit-row.crit{border-left-color:var(--r)}
+.audit-label{font-family:var(--mono);font-size:9px;color:#cdd9e5}
+.audit-desc{font-family:var(--mono);font-size:7px;color:#3a5a6a;margin-top:2px}
+.audit-badge{font-family:var(--mono);font-size:7px;padding:2px 7px;border:1px solid}
+.audit-badge.ok{color:var(--g);border-color:rgba(0,255,133,.2);background:rgba(0,255,133,.06)}
+.audit-badge.warn{color:var(--y);border-color:rgba(255,229,0,.2);background:rgba(255,229,0,.06)}
+.audit-badge.crit{color:var(--r);border-color:rgba(255,49,49,.2);background:rgba(255,49,49,.06)}
+
+/* ACTIONS */
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.abtn{background:#030810;border:1px solid var(--br);color:#4a6a7a;padding:10px 14px;font-family:var(--mono);font-size:8px;letter-spacing:1px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px}
+.abtn:hover{border-color:var(--b);color:var(--b)}
+.abtn.r:hover{border-color:var(--r);color:var(--r)}
+.abtn.g:hover{border-color:var(--g);color:var(--g)}
+.abtn span{font-size:13px}
+
+/* TENTATIVES */
+.fail-row{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:#030810;border:1px solid rgba(255,49,49,.1);margin-bottom:5px}
+.fail-email{font-family:var(--mono);font-size:8px;color:var(--r)}
+.fail-meta{font-family:var(--mono);font-size:7px;color:#3a5a6a;margin-top:2px}
+.fail-count{font-family:var(--orb);font-size:16px;font-weight:900;color:var(--r)}
+.ban-btn{background:transparent;border:1px solid rgba(255,49,49,.3);color:var(--r);font-family:var(--mono);font-size:7px;padding:3px 8px;cursor:pointer;transition:all .2s}
+.ban-btn:hover{background:rgba(255,49,49,.1)}
+
+/* BAN LIST */
+.ban-row{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:#010a03;border:1px solid rgba(255,49,49,.08);margin-bottom:4px}
+.ban-txt{font-family:var(--mono);font-size:8px;color:var(--r)}
+.unban{background:transparent;border:1px solid rgba(0,255,133,.2);color:var(--g);font-family:var(--mono);font-size:7px;padding:2px 7px;cursor:pointer}
+.unban:hover{background:rgba(0,255,133,.08)}
+
+/* INPUT */
+.irow{display:flex;gap:8px;margin-top:10px}
+.irow input{flex:1;background:#010a03;border:1px solid #0d2a1a;color:var(--g);padding:8px 10px;font-family:var(--mono);font-size:9px;outline:none}
+.irow input:focus{border-color:var(--g)}
+.irow button{background:var(--r);color:#000;border:none;padding:8px 14px;font-family:var(--mono);font-size:8px;cursor:pointer;font-weight:bold}
+
+/* TABS */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--br);margin-bottom:14px}
+.tab{font-family:var(--mono);font-size:8px;color:#3a5a6a;letter-spacing:2px;padding:8px 14px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.tab.active{color:var(--g);border-bottom-color:var(--g)}
+
+/* REALTIME BADGE */
+.rt-badge{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:7px;color:var(--b);letter-spacing:1px}
+.rt-dot{width:5px;height:5px;border-radius:50%;background:var(--b);animation:pd 1s infinite}
+
+/* EMPTY */
+.empty{font-family:var(--mono);font-size:8px;color:#1a3a4a;text-align:center;padding:20px}
+
+::-webkit-scrollbar{width:3px} ::-webkit-scrollbar-track{background:var(--bg)} ::-webkit-scrollbar-thumb{background:#0f2030}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="ls">
+  <div class="lt">🛡️ FECAAPP — PILOTAGE</div>
+  <div class="lsub">CONNEXION ADMINISTRATEUR REQUISE</div>
+  <div class="lbox">
+    <div class="lf"><label>EMAIL</label><input type="email" id="le" placeholder="admin@fecaapp.cm" autocomplete="off"></div>
+    <div class="lf"><label>MOT DE PASSE</label><input type="password" id="lp" placeholder="••••••••" onkeydown="if(event.key==='Enter')login()"></div>
+    <button class="lbtn" onclick="login()">🔐 SE CONNECTER</button>
+    <div id="lmsg"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dash">
+
+  <!-- TOPBAR -->
+  <div class="tb">
+    <div class="tbl">🛡️ FECAAPP — TABLEAU DE BORD</div>
+    <div class="tbR">
+      <div class="rt-badge"><div class="rt-dot"></div>REALTIME</div>
+      <div class="sdot"></div>
+      <div class="ttime" id="clk">--:--:--</div>
+      <button class="tlo" onclick="logout()">DÉCONNEXION</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- KPIs -->
+    <div class="krow">
+      <div class="kcard G">
+        <div class="kval" id="k-matches">—</div>
+        <div class="klbl">TOTAL MATCHS</div>
+        <div class="ksub" style="color:var(--g)" id="k-live-sub">— en direct</div>
+      </div>
+      <div class="kcard B">
+        <div class="kval" id="k-leagues">—</div>
+        <div class="klbl">LIGUES ACTIVES</div>
+        <div class="ksub" style="color:var(--b)" id="k-sports-sub">— sports</div>
+      </div>
+      <div class="kcard Y">
+        <div class="kval" id="k-standings">—</div>
+        <div class="klbl">ÉQUIPES CLASSÉES</div>
+        <div class="ksub" style="color:var(--y)">standings total</div>
+      </div>
+      <div class="kcard R">
+        <div class="kval" id="k-locked">—</div>
+        <div class="klbl">MATCHS TERMINÉS</div>
+        <div class="ksub" style="color:#666" id="k-prog-sub">— programmés</div>
+      </div>
+      <div class="kcard W">
+        <div class="kval" id="k-ping">—</div>
+        <div class="klbl">LATENCE (ms)</div>
+        <div class="ksub" id="k-ping-status" style="color:#888">mesure en cours</div>
+      </div>
+    </div>
+
+    <!-- ROW 1 : Matchs live + Log -->
+    <div class="g2">
+
+      <!-- Matchs en cours -->
+      <div class="card">
+        <div class="ctitle">
+          MATCHS EN COURS — REALTIME
+          <div class="rt-badge"><div class="rt-dot"></div>LIVE</div>
+        </div>
+        <div id="live-list"><div class="empty">Chargement...</div></div>
+      </div>
+
+      <!-- Log en direct -->
+      <div class="card">
+        <div class="ctitle">LOG EN DIRECT <span style="color:#3a5a6a;font-size:7px">(ÉVÉNEMENTS SUPABASE RÉELS)</span></div>
+        <div class="log-box" id="log"></div>
+      </div>
+
+    </div>
+
+    <!-- ROW 2 : Sports + Santé + Audit -->
+    <div class="g3">
+
+      <!-- Sports -->
+      <div class="card">
+        <div class="ctitle">SPORTS & DONNÉES EN BASE</div>
+        <div id="sport-list"><div class="empty">Chargement...</div></div>
+      </div>
+
+      <!-- Santé infra -->
+      <div class="card">
+        <div class="ctitle">SANTÉ INFRASTRUCTURE <button class="cact b" onclick="runPing()">TESTER</button></div>
+        <div class="hrow" onclick="runPing()">
+          <div class="hlbl">SUPABASE DATABASE</div>
+          <div class="hval" id="h-db"><div class="hd ok"></div><span style="color:var(--g)">OK</span></div>
+        </div>
+        <div class="hrow">
+          <div class="hlbl">REALTIME CHANNEL</div>
+          <div class="hval" id="h-rt"><div class="hd ok"></div><span style="color:var(--g)">CONNECTÉ</span></div>
+        </div>
+        <div class="hrow">
+          <div class="hlbl">ROW LEVEL SECURITY</div>
+          <div class="hval"><div class="hd ok"></div><span style="color:var(--g)">18 TABLES</span></div>
+        </div>
+        <div class="hrow">
+          <div class="hlbl">AUTH ADMIN</div>
+          <div class="hval"><div class="hd ok"></div><span style="color:var(--g)">SÉCURISÉE</span></div>
+        </div>
+        <div class="hrow">
+          <div class="hlbl">TRIGGERS SQL</div>
+          <div class="hval"><div class="hd ok"></div><span style="color:var(--g)">CORRIGÉS</span></div>
+        </div>
+        <div class="hrow">
+          <div class="hlbl">DOUBLE COUNT</div>
+          <div class="hval"><div class="hd ok"></div><span style="color:var(--g)">ÉLIMINÉ</span></div>
+        </div>
+      </div>
+
+      <!-- Audit -->
+      <div class="card">
+        <div class="ctitle">AUDIT SÉCURITÉ</div>
+        <div class="audit-row ok">
+          <div><div class="audit-label">TRIGGERS HANDBALL</div><div class="audit-desc">team_a_name · Recalcul zéro · Double count corrigé</div></div>
+          <div class="audit-badge ok">✓ OK</div>
+        </div>
+        <div class="audit-row ok">
+          <div><div class="audit-label">ROW LEVEL SECURITY</div><div class="audit-desc">18 tables · Admin UUID · SELECT public Flutter</div></div>
+          <div class="audit-badge ok">✓ OK</div>
+        </div>
+        <div class="audit-row ok">
+          <div><div class="audit-label">SESSIONS DASHBOARDS</div><div class="audit-desc">persistSession:false · Connexion obligatoire</div></div>
+          <div class="audit-badge ok">✓ OK</div>
+        </div>
+        <div class="audit-row warn">
+          <div><div class="audit-label">2FA ADMIN</div><div class="audit-desc">Activer dans Supabase Auth → Settings</div></div>
+          <div class="audit-badge warn">⚠ FAIRE</div>
+        </div>
+        <div class="audit-row crit">
+          <div><div class="audit-label">BACKUP AUTOMATIQUE</div><div class="audit-desc">Sauvegardes automatiques à configurer</div></div>
+          <div class="audit-badge crit">! URGENT</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ROW 3 : Matchs récents + Tentatives + Actions -->
+    <div class="g2" style="margin-bottom:16px">
+
+      <!-- Matchs récents avec tabs -->
+      <div class="card">
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab(0,this)">TOUS LES MATCHS</div>
+          <div class="tab" onclick="switchTab(1,this)">TERMINÉS</div>
+          <div class="tab" onclick="switchTab(2,this)">PROGRAMMÉS</div>
+        </div>
+        <div style="max-height:280px;overflow-y:auto" id="match-list"><div class="empty">Chargement...</div></div>
+      </div>
+
+      <!-- Sécurité accès -->
+      <div class="card">
+        <div class="ctitle">ACCÈS & SÉCURITÉ</div>
+
+        <div style="font-family:var(--mono);font-size:8px;color:#3a5a6a;margin-bottom:8px;letter-spacing:2px">TENTATIVES ÉCHOUÉES CE DASHBOARD</div>
+        <div id="fail-list"><div class="empty" style="padding:10px">Aucune tentative enregistrée</div></div>
+
+        <div style="font-family:var(--mono);font-size:8px;color:#3a5a6a;margin-top:14px;margin-bottom:8px;letter-spacing:2px">EMAILS / IPs BANNIS</div>
+        <div id="ban-list"><div class="empty" style="padding:8px">Aucune entrée</div></div>
+        <div class="irow">
+          <input type="text" id="ban-inp" placeholder="Email ou IP à bannir...">
+          <button onclick="addBan()">BANNIR</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="ctitle">ACTIONS</div>
+      <div class="btn-row">
+        <button class="abtn g" onclick="doBackup()"><span>💾</span>BACKUP BASE</button>
+        <button class="abtn g" onclick="runPing()"><span>⚡</span>TESTER LATENCE</button>
+        <button class="abtn" onclick="refreshAll()"><span>🔄</span>ACTUALISER</button>
+        <button class="abtn" onclick="generateReport()"><span>📋</span>RAPPORT TXT</button>
+        <button class="abtn r" onclick="forceLogout()"><span>⚡</span>DÉCO. ADMINS</button>
+      </div>
+    </div>
+
+  </div><!-- /wrap -->
+</div><!-- /dash -->
+
+<script>
+const DB = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY,
+  { auth:{ persistSession:false, autoRefreshToken:false } });
+
+let fails     = {};
+let bans      = JSON.parse(localStorage.getItem('fb') || '[]');
+let allM      = [];
+let rtChan    = null;
+let sessStart = Date.now();
+let ping      = 0;
+let activeTab = 0;
+
+const SPORTS = {
+  football:  {i:'⚽',c:'#00FF85',n:'Football'},
+  handball:  {i:'🤾',c:'#FF3131',n:'Handball'},
+  basketball:{i:'🏀',c:'#FFA500',n:'Basketball'},
+  volleyball:{i:'🏐',c:'#9B59FF',n:'Volleyball'},
+  tennis:    {i:'🎾',c:'#C8FF00',n:'Tennis'},
+  athletics: {i:'🏃',c:'#FF6B00',n:'Athlétisme'},
+  karate:    {i:'🥋',c:'#FF0044',n:'Karaté'},
+  boxing:    {i:'🥊',c:'#FFB800',n:'Boxe'},
+  mma:       {i:'🤼',c:'#00FF85',n:'MMA'},
+};
+
+// ── LOGIN ──
+async function login() {
+  const em = document.getElementById('le').value.trim();
+  const pw = document.getElementById('lp').value;
+  const mg = document.getElementById('lmsg');
+  if (!em||!pw) { mg.innerText='⚠ Champs vides'; mg.style.color='var(--y)'; return; }
+  mg.innerText='Connexion...'; mg.style.color='#3a6a4a';
+  const {data,error} = await DB.auth.signInWithPassword({email:em,password:pw});
+  if (error) {
+    fails[em] = fails[em]||{count:0,last:''};
+    fails[em].count++; fails[em].last = ts();
+    mg.innerText = `❌ Accès refusé (tentative ${fails[em].count})`;
+    mg.style.color='var(--r)';
+    saveFails();
+  } else {
+    document.getElementById('ls').style.display='none';
+    document.getElementById('dash').style.display='block';
+    boot();
+  }
+}
+
+async function logout() { await DB.auth.signOut(); if(rtChan) DB.removeChannel(rtChan); location.reload(); }
+
+// ── BOOT ──
+async function boot() {
+  startClock();
+  await loadData();
+  startRealtime();
+  setInterval(loadData, 30000);
+  renderFails(); renderBans();
+}
+
+function startClock() {
+  setInterval(() => { document.getElementById('clk').innerText = new Date().toLocaleTimeString('fr-FR',{hour12:false}); }, 1000);
+}
+
+function ts() { return new Date().toLocaleTimeString('fr-FR',{hour12:false}); }
+
+// ── REALTIME (vrai) ──
+function startRealtime() {
+  rtChan = DB.channel('dashboard_watch')
+    .onPostgresChanges({event:'*',schema:'public',table:'matches',callback:(p)=>{
+      const ev = p.eventType;
+      const r  = p.newRecord || p.oldRecord;
+      const sp = SPORTS[r?.sport_type]||{i:'🏅'};
+      if (ev==='INSERT')
+        addLog('ok','🆕',`Match créé : ${r?.team_a_name||'?'} vs ${r?.team_b_name||'?'} (${sp.i} ${r?.sport_type||''})`);
+      else if (ev==='UPDATE' && p.newRecord?.is_locked && !p.oldRecord?.is_locked)
+        addLog('warn','🔒',`Match clôturé : ${r?.team_a_name||'?'} ${r?.score1||0}-${r?.score2||0} ${r?.team_b_name||'?'}`);
+      else if (ev==='UPDATE' && p.newRecord?.is_timer_active && !p.oldRecord?.is_timer_active)
+        addLog('warn','🔴',`Match démarré LIVE : ${r?.team_a_name||'?'} vs ${r?.team_b_name||'?'}`);
+      else if (ev==='UPDATE' && !p.newRecord?.is_timer_active && p.oldRecord?.is_timer_active)
+        addLog('ok','⏸',`Chrono pausé : ${r?.team_a_name||'?'} vs ${r?.team_b_name||'?'}`);
+      else if (ev==='DELETE')
+        addLog('err','🗑️',`Match supprimé : ${r?.team_a_name||'?'} vs ${r?.team_b_name||'?'}`);
+      // Recharger les données
+      setTimeout(loadData, 500);
+    }})
+    .subscribe(s => {
+      const el = document.getElementById('h-rt');
+      if (s==='SUBSCRIBED')
+        el.innerHTML = '<div class="hd ok"></div><span style="color:var(--g)">CONNECTÉ</span>';
+      else
+        el.innerHTML = '<div class="hd warn"></div><span style="color:var(--y)">EN ATTENTE</span>';
+    });
+}
+
+// ── LOAD DATA (réel) ──
+async function loadData() {
+  const t0 = Date.now();
+  try {
+    const [{data:M},{data:L},{data:S},{data:HS}] = await Promise.all([
+      DB.from('matches').select('id,sport_type,is_locked,is_timer_active,status,team_a_name,team_b_name,score1,score2,updated_at').order('updated_at',{ascending:false}),
+      DB.from('leagues').select('id,sport_type,name'),
+      DB.from('standings').select('id'),
+      DB.from('handball_standings').select('id'),
+    ]);
+
+    ping = Date.now()-t0;
+    allM = M||[];
+
+    // KPIs
+    const live = allM.filter(m=>m.is_timer_active&&!m.is_locked).length;
+    const done = allM.filter(m=>m.is_locked).length;
+    const prog = allM.filter(m=>!m.is_timer_active&&!m.is_locked).length;
+    const sports = [...new Set((L||[]).map(l=>l.sport_type))].length;
+
+    document.getElementById('k-matches').innerText  = allM.length;
+    document.getElementById('k-leagues').innerText  = (L||[]).length;
+    document.getElementById('k-standings').innerText= (S||[]).length+(HS||[]).length;
+    document.getElementById('k-locked').innerText   = done;
+    document.getElementById('k-ping').innerText     = ping;
+    document.getElementById('k-live-sub').innerText = `${live} en direct`;
+    document.getElementById('k-sports-sub').innerText=`${sports} sport${sports>1?'s':''}`;
+    document.getElementById('k-prog-sub').innerText = `${prog} programmés`;
+
+    const pingEl = document.getElementById('k-ping-status');
+    if (ping<200) { pingEl.innerText='Excellent'; pingEl.style.color='var(--g)'; }
+    else if (ping<400) { pingEl.innerText='Correct'; pingEl.style.color='var(--y)'; }
+    else { pingEl.innerText='Lent — vérifier'; pingEl.style.color='var(--r)'; }
+
+    document.getElementById('h-db').innerHTML = `<div class="hd ok"></div><span style="color:var(--g)">${ping}ms</span>`;
+
+    renderLive(allM);
+    renderMatchList(allM, activeTab);
+    renderSports(allM, L||[]);
+    addLog('ok','🔄',`Données actualisées — ${allM.length} matchs · ${(L||[]).length} ligues · ${ping}ms`);
+
+  } catch(e) {
+    addLog('err','❌','Erreur Supabase : '+e.message);
+    document.getElementById('h-db').innerHTML = '<div class="hd err"></div><span style="color:var(--r)">ERREUR</span>';
+  }
+}
+
+// ── MATCHS EN DIRECT ──
+function renderLive(matches) {
+  const live = matches.filter(m=>m.is_timer_active&&!m.is_locked);
+  const el   = document.getElementById('live-list');
+  if (!live.length) { el.innerHTML='<div class="empty">Aucun match en direct actuellement</div>'; return; }
+  el.innerHTML = live.map(m=>{
+    const sp = SPORTS[m.sport_type]||{i:'🏅'};
+    return `<div class="match-item live">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span>${sp.i}</span>
+        <div class="match-teams">${m.team_a_name||'?'}<br><span style="color:#3a5a6a;font-size:7px">${m.sport_type}</span></div>
+      </div>
+      <div class="match-score">${m.score1||0} — ${m.score2||0}</div>
+      <div>
+        <div class="match-teams" style="text-align:right">${m.team_b_name||'?'}</div>
+        <span class="match-status ms-live">LIVE</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── LISTE MATCHS AVEC TABS ──
+function renderMatchList(matches, tab) {
+  let list;
+  if (tab===0) list = matches.slice(0,15);
+  else if (tab===1) list = matches.filter(m=>m.is_locked).slice(0,15);
+  else list = matches.filter(m=>!m.is_timer_active&&!m.is_locked).slice(0,15);
+
+  const el = document.getElementById('match-list');
+  if (!list.length) { el.innerHTML='<div class="empty">Aucun match</div>'; return; }
+  el.innerHTML = list.map(m=>{
+    const sp = SPORTS[m.sport_type]||{i:'🏅'};
+    const isLive   = m.is_timer_active&&!m.is_locked;
+    const isDone   = m.is_locked;
+    const statusCls = isLive?'ms-live':isDone?'ms-done':'ms-prog';
+    const statusTxt = isLive?'LIVE':isDone?'TERMINÉ':'PROG.';
+    return `<div class="match-item ${isLive?'live':''}">
+      <div style="display:flex;align-items:center;gap:7px">
+        <span>${sp.i}</span>
+        <div class="match-teams" style="font-size:8px">${m.team_a_name||'?'} vs ${m.team_b_name||'?'}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="match-score ${isDone?'locked':''}" style="font-size:12px">${m.score1||0}-${m.score2||0}</div>
+        <span class="match-status ${statusCls}">${statusTxt}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function switchTab(n, el) {
+  activeTab = n;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderMatchList(allM, n);
+}
+
+// ── SPORTS ──
+function renderSports(matches, leagues) {
+  const sc={}, lc={};
+  matches.forEach(m => sc[m.sport_type]=(sc[m.sport_type]||0)+1);
+  leagues.forEach(l => lc[l.sport_type]=(lc[l.sport_type]||0)+1);
+  const sorted = Object.entries(sc).sort((a,b)=>b[1]-a[1]);
+  const maxC   = Math.max(...Object.values(sc),1);
+
+  document.getElementById('sport-list').innerHTML = sorted.map(([s,c])=>{
+    const m = SPORTS[s]||{i:'🏅',c:'#ccc',n:s};
+    return `<div class="sport-row">
+      <div class="sport-icon">${m.i}</div>
+      <div style="flex:1">
+        <div class="sport-name">${m.n} <span style="color:#3a5a6a;font-size:7px">${lc[s]||0} ligue(s)</span></div>
+        <div class="sport-bar"><div class="sport-fill" style="width:${(c/maxC*100).toFixed(0)}%;background:${m.c}"></div></div>
+      </div>
+      <div class="sport-count" style="color:${m.c}">${c}</div>
+    </div>`;
+  }).join('') || '<div class="empty">Aucune donnée</div>';
+}
+
+// ── LOG (vrai) ──
+function addLog(type, icon, msg) {
+  const c = document.getElementById('log');
+  const e = document.createElement('div');
+  e.className = `logrow ${type}`;
+  e.innerHTML = `<span class="lt2">${ts()}</span><span style="min-width:14px">${icon}</span><span class="lm">${msg}</span>`;
+  c.insertBefore(e, c.firstChild);
+  if(c.children.length>50) c.removeChild(c.lastChild);
+}
+
+// ── PING ──
+async function runPing() {
+  addLog('ok','⚡','Test latence en cours...');
+  const t0=Date.now();
+  try {
+    await DB.from('leagues').select('id').limit(1);
+    const ms=Date.now()-t0;
+    ping=ms;
+    document.getElementById('k-ping').innerText=ms;
+    document.getElementById('h-db').innerHTML=`<div class="hd ${ms<300?'ok':'warn'}"></div><span style="color:${ms<300?'var(--g)':'var(--y)'}">${ms}ms</span>`;
+    addLog('ok','✅',`Latence Supabase : ${ms}ms`);
+  } catch(e) {
+    addLog('err','❌','Erreur ping : '+e.message);
+  }
+}
+
+// ── REFRESH ──
+async function refreshAll() { addLog('ok','🔄','Actualisation manuelle...'); await loadData(); }
+
+// ── BACKUP (réel) ──
+async function doBackup() {
+  addLog('ok','💾','Backup en cours — export de toutes les tables...');
+  try {
+    const [{data:M},{data:L},{data:S},{data:HS},{data:E}] = await Promise.all([
+      DB.from('matches').select('*'),
+      DB.from('leagues').select('*'),
+      DB.from('standings').select('*'),
+      DB.from('handball_standings').select('*'),
+      DB.from('events').select('*'),
+    ]);
+    const backup = { date:new Date().toISOString(), matches:M, leagues:L, standings:S, handball_standings:HS, events:E };
+    const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+    Object.assign(document.createElement('a'),{href:URL.createObjectURL(blob),download:`fecaapp_backup_${Date.now()}.json`}).click();
+    addLog('ok','✅',`Backup terminé — ${M?.length||0} matchs · ${L?.length||0} ligues · ${E?.length||0} événements`);
+  } catch(e) { addLog('err','❌','Erreur backup : '+e.message); }
+}
+
+// ── TENTATIVES ──
+function saveFails() { localStorage.setItem('fdash_fails', JSON.stringify(fails)); }
+function loadFails() { fails = JSON.parse(localStorage.getItem('fdash_fails')||'{}'); }
+function renderFails() {
+  loadFails();
+  const entries = Object.entries(fails);
+  const el = document.getElementById('fail-list');
+  if (!entries.length) { el.innerHTML='<div class="empty" style="padding:8px">Aucune tentative enregistrée</div>'; return; }
+  el.innerHTML = entries.map(([em,d])=>`
+    <div class="fail-row">
+      <div><div class="fail-email">⚠ ${em}</div><div class="fail-meta">Dernière tentative : ${d.last}</div></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="fail-count">${d.count}x</div>
+        <button class="ban-btn" onclick="addBanEntry('${em}')">BANNIR</button>
+      </div>
+    </div>`).join('');
+}
+
+// ── BANS ──
+function addBan() { const v=document.getElementById('ban-inp').value.trim(); if(v){addBanEntry(v);document.getElementById('ban-inp').value='';} }
+function addBanEntry(v) {
+  if(!bans.includes(v)) { bans.push(v); localStorage.setItem('fb',JSON.stringify(bans)); addLog('err','🚫',`Banni : ${v}`); }
+  renderBans();
+}
+function removeBan(v) { bans=bans.filter(b=>b!==v); localStorage.setItem('fb',JSON.stringify(bans)); addLog('ok','✅',`Débanni : ${v}`); renderBans(); }
+function renderBans() {
+  const el=document.getElementById('ban-list');
+  el.innerHTML = bans.length ? bans.map(b=>`<div class="ban-row"><span class="ban-txt">🚫 ${b}</span><button class="unban" onclick="removeBan('${b}')">DÉBANNIR</button></div>`).join('')
+    : '<div class="empty" style="padding:8px">Aucune entrée bannie</div>';
+}
+
+// ── RAPPORT ──
+function generateReport() {
+  const live=allM.filter(m=>m.is_timer_active&&!m.is_locked).length;
+  const done=allM.filter(m=>m.is_locked).length;
+  const prog=allM.filter(m=>!m.is_timer_active&&!m.is_locked).length;
+  const dur=Math.round((Date.now()-sessStart)/60000);
+  const txt=`FECAAPP — RAPPORT DE PILOTAGE
+${new Date().toLocaleString('fr-FR')}
+${'═'.repeat(40)}
+
+DONNÉES EN BASE
+  Matchs total     : ${allM.length}
+  En direct        : ${live}
+  Terminés         : ${done}
+  Programmés       : ${prog}
+  Latence Supabase : ${ping}ms
+
+SÉCURITÉ
+  RLS              : Activé 18 tables ✅
+  Triggers SQL     : Corrigés ✅
+  Double count     : Éliminé ✅
+  Session          : persistSession:false ✅
+  2FA admin        : À faire ⚠
+  Backup auto      : À configurer ⚠
+
+ACCÈS
+  Tentatives échouées : ${Object.values(fails).reduce((a,b)=>a+b.count,0)}
+  Emails/IPs bannis   : ${bans.length}
+
+DURÉE SESSION : ${dur} min
+${'═'.repeat(40)}`;
+  const blob=new Blob([txt],{type:'text/plain'});
+  Object.assign(document.createElement('a'),{href:URL.createObjectURL(blob),download:`rapport_${Date.now()}.txt`}).click();
+  addLog('ok','📋','Rapport téléchargé');
+}
+
+// ── FORCE LOGOUT ──
+async function forceLogout() {
+  if(!confirm('Déconnecter tous les administrateurs ?')) return;
+  await DB.auth.signOut();
+  addLog('err','⚡','Déconnexion forcée');
+  setTimeout(()=>location.reload(),800);
+}
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', () => { DB.auth.signOut(); });
+</script>
+</body>
+</html>

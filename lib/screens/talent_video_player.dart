@@ -5,11 +5,17 @@ import 'dart:async';
 import 'dart:ui';
 import '../models/user.dart';
 import 'profile_screen.dart';
+import 'home_screen.dart' show SharedCommentsSheet;
 import '../services/social_service.dart';
 
 class TalentVideoPlayer extends StatefulWidget {
   final dynamic talent;
-  const TalentVideoPlayer({super.key, required this.talent});
+  final Color sportColor; // ← couleur dynamique selon le sport
+  const TalentVideoPlayer({
+    super.key,
+    required this.talent,
+    this.sportColor = const Color(0xFF3CFF7E),
+  });
 
   @override
   State<TalentVideoPlayer> createState() => _TalentVideoPlayerState();
@@ -18,22 +24,23 @@ class TalentVideoPlayer extends StatefulWidget {
 class _TalentVideoPlayerState extends State<TalentVideoPlayer> {
   late VideoPlayerController _controller;
   final SocialService _socialService = SocialService();
+
   bool _isLiked = false;
   bool _showHeart = false;
   bool _isInitialized = false;
   bool _showControls = false;
+  bool _isBuffering = false;
   Timer? _controlsTimer;
 
   @override
   void initState() {
     super.initState();
-    // Initialisation propre depuis les données du talent
     _isLiked = widget.talent['is_liked_by_me'] ?? false;
     _initializePlayer();
   }
 
   void _initializePlayer() {
-    String videoUrl = widget.talent['video_url'] ?? "";
+    final videoUrl = widget.talent['video_url']?.toString() ?? '';
     if (videoUrl.isEmpty) return;
 
     _controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl))
@@ -42,40 +49,39 @@ class _TalentVideoPlayerState extends State<TalentVideoPlayer> {
           setState(() => _isInitialized = true);
           _controller.setLooping(true);
           _controller.play();
-          _controller.addListener(() {
-            if (mounted) setState(() {});
-          });
+          _controller.addListener(_onVideoListener);
         }
       });
   }
 
-  // Formattage du temps (ex: 0:15)
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, "0");
-    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
-    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
-    return "$twoDigitMinutes:$twoDigitSeconds";
+  void _onVideoListener() {
+    if (!mounted) return;
+    final buffering = _controller.value.isBuffering;
+    if (buffering != _isBuffering) setState(() => _isBuffering = buffering);
   }
 
-  // --- LOGIQUE DOUBLE TAP : L'ANIMATION LION ---
-  void _handleGlobalDoubleTap() {
+  String _formatDuration(Duration d) {
+    String pad(int n) => n.toString().padLeft(2, '0');
+    return "${pad(d.inMinutes.remainder(60))}:${pad(d.inSeconds.remainder(60))}";
+  }
+
+  // ── Double tap = like + animation ──────────────────────────
+  void _handleDoubleTap() {
     if (!_isLiked) _toggleLike();
-
     setState(() => _showHeart = false);
-
     Future.delayed(const Duration(milliseconds: 10), () {
       if (mounted) {
         setState(() => _showHeart = true);
         HapticFeedback.heavyImpact();
       }
     });
-
-    Timer(const Duration(milliseconds: 1500), () {
+    Timer(const Duration(milliseconds: 1400), () {
       if (mounted) setState(() => _showHeart = false);
     });
   }
 
-  void _handleSingleTap() {
+  // ── Simple tap = contrôles ──────────────────────────────────
+  void _handleTap() {
     setState(() => _showControls = !_showControls);
     if (_showControls) {
       _controlsTimer?.cancel();
@@ -85,39 +91,30 @@ class _TalentVideoPlayerState extends State<TalentVideoPlayer> {
     }
   }
 
-  // --- LOGIQUE LIKE (UNIFIÉE : MISE À JOUR LOCALE ET SYNC DB) ---
+  // ── Like ────────────────────────────────────────────────────
   Future<void> _toggleLike() async {
-    final bool wasLiked = _isLiked;
-    final String talentId = widget.talent['id'].toString();
-    final String currentUserId = _socialService.supabase.auth.currentUser!.id;
+    final wasLiked = _isLiked;
+    final talentId = widget.talent['id'].toString();
+    final userId = _socialService.supabase.auth.currentUser!.id;
 
-    // Mise à jour instantanée de l'UI et de l'objet talent (Persistance locale forte)
     setState(() {
       _isLiked = !wasLiked;
-      int currentLikes =
+      int cur =
           int.tryParse(widget.talent['likes_count']?.toString() ?? '0') ?? 0;
-
-      // Mise à jour de l'objet source pour éviter le reset au scroll
-      widget.talent['likes_count'] = !wasLiked
-          ? (currentLikes + 1)
-          : (currentLikes - 1);
+      widget.talent['likes_count'] = !wasLiked ? cur + 1 : cur - 1;
       widget.talent['is_liked_by_me'] = !wasLiked;
     });
 
     try {
-      // Utilise désormais la table 'likes' unifiée via le service
-      await _socialService.toggleTalentLike(talentId, currentUserId);
+      await _socialService.toggleTalentLike(talentId, userId);
     } catch (e) {
-      // Rollback en cas d'erreur
       if (mounted) {
         setState(() {
           _isLiked = wasLiked;
-          int currentLikes =
+          int cur =
               int.tryParse(widget.talent['likes_count']?.toString() ?? '0') ??
               0;
-          widget.talent['likes_count'] = wasLiked
-              ? currentLikes
-              : (currentLikes - 1);
+          widget.talent['likes_count'] = wasLiked ? cur : cur - 1;
           widget.talent['is_liked_by_me'] = wasLiked;
         });
       }
@@ -125,218 +122,117 @@ class _TalentVideoPlayerState extends State<TalentVideoPlayer> {
   }
 
   void _seekRelative(int seconds) {
-    if (_isInitialized) {
-      _controller.seekTo(
-        _controller.value.position + Duration(seconds: seconds),
-      );
-      HapticFeedback.mediumImpact();
-    }
+    if (!_isInitialized) return;
+    _controller.seekTo(_controller.value.position + Duration(seconds: seconds));
+    HapticFeedback.mediumImpact();
   }
 
-  // --- MODAL COMMENTAIRES (SUR TABLES UNIFIÉES) ---
-  void _showCommentsModal() {
-    final TextEditingController commentController = TextEditingController();
-    final String talentId = widget.talent['id'].toString();
-    final String currentUserId = _socialService.supabase.auth.currentUser!.id;
+  // ── Commentaires ────────────────────────────────────────────
+  void _showComments() {
+    final userId = _socialService.supabase.auth.currentUser!.id;
+
+    final dynamic rawUsers = widget.talent['users'];
+    Map<String, dynamic> authorData = {};
+    if (rawUsers is List && rawUsers.isNotEmpty) {
+      authorData = Map<String, dynamic>.from(rawUsers[0]);
+    } else if (rawUsers is Map<String, dynamic>) {
+      authorData = rawUsers;
+    }
+
+    final fakePost = {
+      'id': widget.talent['id'],
+      'comments_count': widget.talent['comments_count'] ?? 0,
+    };
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
-          height: MediaQuery.of(context).size.height * 0.8,
-          decoration: const BoxDecoration(
-            color: Color(0xFF121212),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(35)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(10),
+      barrierColor: Colors.black.withOpacity(0.85),
+      builder: (_) => SharedCommentsSheet(
+        post: fakePost,
+        socialService: _socialService,
+        currentUserId: userId,
+        currentUserImg: authorData['img_url'],
+        currentUserName: authorData['full_name'] ?? 'Lion',
+        onCommentAdded: () {
+          if (mounted) {
+            setState(() {
+              int cur =
+                  int.tryParse(
+                    widget.talent['comments_count']?.toString() ?? '0',
+                  ) ??
+                  0;
+              widget.talent['comments_count'] = cur + 1;
+            });
+          }
+        },
+        onNavigateToProfile: (ud) {
+          if (ud == null) return;
+          final uid = ud['id'] ?? '';
+          if (uid.isEmpty) return;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ProfileScreen(
+                user: User(
+                  id: uid,
+                  fullName: ud['full_name'] ?? 'Utilisateur',
+                  email: ud['email'] ?? '',
+                  role: ud['role'] ?? 'USER',
+                  isCertified: ud['is_certified'] ?? false,
+                  img_url: ud['img_url'],
+                  bio: ud['bio'],
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Text(
-                  "ESPACE COMMENTAIRES",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 12,
-                    letterSpacing: 2.5,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: StreamBuilder<List<dynamic>>(
-                  stream: _socialService.getTalentCommentsStream(talentId),
-                  builder: (context, snapshot) {
-                    final comments = snapshot.data ?? [];
-                    return ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 15),
-                      itemCount: comments.length,
-                      itemBuilder: (context, i) =>
-                          _buildCommentTile(comments[i]),
-                    );
-                  },
-                ),
-              ),
-              Container(
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-                  left: 20,
-                  right: 20,
-                  top: 15,
-                ),
-                decoration: const BoxDecoration(color: Color(0xFF1A1A1A)),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: commentController,
-                        autofocus: true,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          hintText: "Ajoute ton commentaire...",
-                          hintStyle: const TextStyle(
-                            color: Colors.white24,
-                            fontSize: 14,
-                          ),
-                          filled: true,
-                          fillColor: Colors.white.withOpacity(0.05),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(25),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    GestureDetector(
-                      onTap: () async {
-                        final text = commentController.text.trim();
-                        if (text.isNotEmpty) {
-                          bool ok = await _socialService.addTalentComment(
-                            talentId,
-                            currentUserId,
-                            text,
-                          );
-                          if (ok) {
-                            commentController.clear();
-                            // Mise à jour locale pour éviter le reset au scroll
-                            setState(() {
-                              int current =
-                                  int.tryParse(
-                                    widget.talent['comments_count']
-                                            ?.toString() ??
-                                        '0',
-                                  ) ??
-                                  0;
-                              widget.talent['comments_count'] = current + 1;
-                            });
-                          }
-                        }
-                      },
-                      child: const CircleAvatar(
-                        backgroundColor: Colors.greenAccent,
-                        radius: 22,
-                        child: Icon(
-                          Icons.send_rounded,
-                          color: Colors.black,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCommentTile(dynamic comment) {
-    final bool isCert = comment['is_certified'] == true;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundImage: (comment['author_img_url'] != null)
-                ? NetworkImage(comment['author_img_url'])
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      comment['author_name'] ?? "Lion",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                    if (isCert) ...[
-                      const SizedBox(width: 4),
-                      const Icon(
-                        Icons.verified,
-                        color: Colors.blueAccent,
-                        size: 12,
-                      ),
-                    ],
-                  ],
-                ),
-                Text(
-                  comment['content'] ?? "",
-                  style: const TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-              ],
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
   @override
+  void dispose() {
+    _controlsTimer?.cancel();
+    _controller.removeListener(_onVideoListener);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // BUILD
+  // ═══════════════════════════════════════════════════════════
+
+  @override
   Widget build(BuildContext context) {
-    // Extraction robuste des données utilisateur (Map ou List)
     final dynamic rawUsers = widget.talent['users'];
     Map<String, dynamic> userData = {};
     if (rawUsers is List && rawUsers.isNotEmpty) {
-      userData = rawUsers[0];
+      userData = Map<String, dynamic>.from(rawUsers[0]);
     } else if (rawUsers is Map<String, dynamic>) {
       userData = rawUsers;
     }
 
-    final String fullName = userData['full_name'] ?? "Lion anonyme";
-    final String? avatarUrl = userData['img_url'];
-    final bool isCertified = userData['is_certified'] == true;
+    final fullName = userData['full_name']?.toString() ?? 'Lion anonyme';
+    final avatarUrl = userData['img_url']?.toString();
+    final isCertified = userData['is_certified'] == true;
+    final city = (widget.talent['city'] ?? userData['city'] ?? '').toString();
+    final sport = widget.talent['sport_type']?.toString() ?? '';
+    final category = widget.talent['category']?.toString() ?? '';
+    final niveau = widget.talent['level']?.toString() ?? '';
+    final color = widget.sportColor;
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: GestureDetector(
-        onTap: _handleSingleTap,
-        onDoubleTap: _handleGlobalDoubleTap,
+        onTap: _handleTap,
+        onDoubleTap: _handleDoubleTap,
         behavior: HitTestBehavior.opaque,
         child: Stack(
           alignment: Alignment.center,
           children: [
+            // ── Vidéo ──────────────────────────────────────
             SizedBox.expand(
               child: _isInitialized
                   ? FittedBox(
@@ -349,246 +245,406 @@ class _TalentVideoPlayerState extends State<TalentVideoPlayer> {
                     )
                   : const Center(
                       child: CircularProgressIndicator(
-                        color: Colors.greenAccent,
+                        color: Color(0xFF3CFF7E),
                         strokeWidth: 2,
                       ),
                     ),
             ),
 
+            // ── Gradient haut ──────────────────────────────
             Positioned.fill(
-              child: Container(
+              child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withOpacity(0.3),
+                      Colors.black.withOpacity(0.55),
                       Colors.transparent,
-                      Colors.black.withOpacity(0.8),
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.85),
                     ],
+                    stops: const [0.0, 0.2, 0.6, 1.0],
                   ),
                 ),
               ),
             ),
-            if (_showControls && _isInitialized)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.replay_10_rounded,
-                      color: Colors.white,
-                      size: 55,
+
+            // ── Buffering indicator ────────────────────────
+            if (_isBuffering && _isInitialized)
+              Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      color: Colors.black.withOpacity(0.4),
+                      child: CircularProgressIndicator(
+                        color: color,
+                        strokeWidth: 2,
+                      ),
                     ),
-                    onPressed: () => _seekRelative(-10),
                   ),
-                  const SizedBox(width: 30),
-                  IconButton(
-                    icon: Icon(
+                ),
+              ),
+
+            // ── Contrôles lecture ──────────────────────────
+            if (_showControls && _isInitialized)
+              Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _controlBtn(
+                      Icons.replay_10_rounded,
+                      () => _seekRelative(-10),
+                    ),
+                    const SizedBox(width: 28),
+                    _controlBtn(
                       _controller.value.isPlaying
                           ? Icons.pause_circle_outline_rounded
                           : Icons.play_circle_outline_rounded,
-                      color: Colors.white,
-                      size: 85,
+                      () => setState(
+                        () => _controller.value.isPlaying
+                            ? _controller.pause()
+                            : _controller.play(),
+                      ),
+                      size: 80,
                     ),
-                    onPressed: () => setState(
-                      () => _controller.value.isPlaying
-                          ? _controller.pause()
-                          : _controller.play(),
-                    ),
-                  ),
-                  const SizedBox(width: 30),
-                  IconButton(
-                    icon: const Icon(
+                    const SizedBox(width: 28),
+                    _controlBtn(
                       Icons.forward_10_rounded,
-                      color: Colors.white,
-                      size: 55,
+                      () => _seekRelative(10),
                     ),
-                    onPressed: () => _seekRelative(10),
-                  ),
-                ],
+                  ],
+                ),
               ),
 
+            // ── Animation cœur double tap ──────────────────
             if (_showHeart)
-              Stack(
-                alignment: Alignment.center,
+              IgnorePointer(
+                child: Center(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      _LionHeartPart(color: color, size: 200, delay: 0),
+                      _LionHeartPart(
+                        color: Colors.redAccent,
+                        size: 130,
+                        delay: 150,
+                      ),
+                      _LionStarPart(color: color, delay: 350),
+                    ],
+                  ),
+                ),
+              ),
+
+            // ── Header : retour + sport badge ──────────────
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              left: 10,
+              right: 10,
+              child: Row(
                 children: [
-                  _LionHeartPart(
-                    color: Colors.greenAccent,
-                    size: 200,
-                    delay: 0,
+                  IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.4),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(context),
                   ),
-                  _LionHeartPart(
-                    color: Colors.redAccent,
-                    size: 130,
-                    delay: 200,
-                  ),
-                  _LionStarPart(delay: 400),
+                  const Spacer(),
+                  if (sport.isNotEmpty)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: color.withOpacity(0.4)),
+                          ),
+                          child: Text(
+                            sport.toUpperCase(),
+                            style: TextStyle(
+                              color: color,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
+            ),
+
+            // ── Infos bas gauche ───────────────────────────
             Positioned(
-              bottom: 45,
-              left: 15,
+              bottom: 40,
+              left: 14,
               right: 80,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Durée
                   if (_isInitialized)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 4, bottom: 2),
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.4),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       child: Text(
                         "${_formatDuration(_controller.value.position)} / ${_formatDuration(_controller.value.duration)}",
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.6),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 1.0,
+                          color: Colors.white.withOpacity(0.7),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
                         ),
                       ),
                     ),
-                  const Text(
+
+                  // Label TALENT
+                  Text(
                     "TALENT",
                     style: TextStyle(
-                      color: Colors.greenAccent,
-                      fontSize: 42,
+                      color: color,
+                      fontSize: 36,
                       fontWeight: FontWeight.w900,
-                      shadows: [Shadow(blurRadius: 15, color: Colors.black)],
+                      letterSpacing: 2,
+                      shadows: [
+                        Shadow(blurRadius: 20, color: color.withOpacity(0.4)),
+                      ],
                     ),
                   ),
+
+                  // Auteur
                   GestureDetector(
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
+                        builder: (_) =>
                             ProfileScreen(user: User.fromJson(userData)),
                       ),
                     ),
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: Colors.greenAccent,
+                        Container(
+                          padding: const EdgeInsets.all(1.5),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: color, width: 1.5),
+                          ),
                           child: CircleAvatar(
                             radius: 18,
-                            backgroundImage: (avatarUrl != null)
+                            backgroundColor: Colors.black,
+                            backgroundImage: avatarUrl != null
                                 ? NetworkImage(avatarUrl)
+                                : null,
+                            child: avatarUrl == null
+                                ? Text(
+                                    fullName.isNotEmpty
+                                        ? fullName[0].toUpperCase()
+                                        : 'L',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  )
                                 : null,
                           ),
                         ),
                         const SizedBox(width: 10),
                         Flexible(
-                          child: Text(
-                            fullName,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                              shadows: [
-                                Shadow(blurRadius: 10, color: Colors.black),
-                              ],
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      fullName,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 15,
+                                        shadows: [
+                                          Shadow(
+                                            blurRadius: 8,
+                                            color: Colors.black,
+                                          ),
+                                        ],
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (isCertified) ...[
+                                    const SizedBox(width: 4),
+                                    const Icon(
+                                      Icons.verified_rounded,
+                                      color: Colors.blueAccent,
+                                      size: 14,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              if (city.isNotEmpty)
+                                Text(
+                                  "📍 $city",
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.55),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
-                        if (isCertified)
-                          const Icon(
-                            Icons.verified,
-                            color: Colors.blue,
-                            size: 20,
-                          ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 15),
-                  _buildInfoCard(),
+                  const SizedBox(height: 10),
+
+                  // Carte infos sportives
+                  _buildInfoCard(category, niveau, color),
                 ],
               ),
             ),
 
+            // ── Actions droite ─────────────────────────────
             Positioned(
-              right: 15,
-              bottom: 50,
+              right: 12,
+              bottom: 40,
               child: Column(
                 children: [
-                  _buildActionButton(
+                  _actionBtn(
                     icon: _isLiked
                         ? Icons.favorite_rounded
                         : Icons.favorite_border_rounded,
                     color: _isLiked ? Colors.redAccent : Colors.white,
-                    label: widget.talent['likes_count']?.toString() ?? "0",
-                    onTap: _toggleLike,
+                    label: _fmtCount(
+                      int.tryParse(
+                            widget.talent['likes_count']?.toString() ?? '0',
+                          ) ??
+                          0,
+                    ),
+                    onTap: () {
+                      HapticFeedback.mediumImpact();
+                      _toggleLike();
+                    },
+                    glowColor: _isLiked ? Colors.redAccent : null,
                   ),
-                  _buildActionButton(
+                  const SizedBox(height: 4),
+                  _actionBtn(
                     icon: Icons.chat_bubble_outline_rounded,
                     color: Colors.white,
-                    label: widget.talent['comments_count']?.toString() ?? "0",
-                    onTap: _showCommentsModal,
+                    label: _fmtCount(
+                      int.tryParse(
+                            widget.talent['comments_count']?.toString() ?? '0',
+                          ) ??
+                          0,
+                    ),
+                    onTap: _showComments,
                   ),
-                  _buildActionButton(
+                  const SizedBox(height: 4),
+                  _actionBtn(
                     icon: Icons.repeat_rounded,
                     color: Colors.white,
-                    label: widget.talent['reposts_count']?.toString() ?? "0",
+                    label: _fmtCount(
+                      int.tryParse(
+                            widget.talent['reposts_count']?.toString() ?? '0',
+                          ) ??
+                          0,
+                    ),
                     onTap: () async {
+                      HapticFeedback.mediumImpact();
                       try {
-                        final String currentUserId =
+                        final uid =
                             _socialService.supabase.auth.currentUser!.id;
                         await _socialService.talentRepost(
                           widget.talent['id'].toString(),
-                          currentUserId,
+                          uid,
                         );
-                        // Mise à jour locale immédiate du compteur
                         setState(() {
-                          int current =
+                          int cur =
                               int.tryParse(
                                 widget.talent['reposts_count']?.toString() ??
                                     '0',
                               ) ??
                               0;
-                          widget.talent['reposts_count'] = current + 1;
+                          widget.talent['reposts_count'] = cur + 1;
                         });
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Talent reposté !")),
+                            SnackBar(
+                              content: const Text(
+                                "Talent reposté !",
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              backgroundColor: color,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              margin: const EdgeInsets.all(16),
+                            ),
                           );
                         }
                       } catch (e) {
-                        debugPrint("Erreur Repost: $e");
+                        debugPrint("Repost error: $e");
                       }
                     },
                   ),
-                  _buildActionButton(
-                    icon: Icons.auto_awesome,
+                  const SizedBox(height: 4),
+                  _actionBtn(
+                    icon: Icons.auto_awesome_rounded,
                     color: Colors.amber,
                     label: "TOP",
+                    glowColor: Colors.amber,
                   ),
                 ],
               ),
             ),
 
+            // ── Barre de progression ───────────────────────
             Positioned(
               bottom: 0,
               left: 0,
               right: 0,
-              child: SizedBox(
-                height: 4,
-                child: VideoProgressIndicator(
-                  _controller,
-                  allowScrubbing: true,
-                  colors: const VideoProgressColors(
-                    playedColor: Colors.greenAccent,
-                    bufferedColor: Colors.white24,
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 50,
-              left: 10,
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-                onPressed: () => Navigator.pop(context),
-              ),
+              child: _isInitialized
+                  ? VideoProgressIndicator(
+                      _controller,
+                      allowScrubbing: true,
+                      colors: VideoProgressColors(
+                        playedColor: color,
+                        bufferedColor: Colors.white24,
+                        backgroundColor: Colors.white10,
+                      ),
+                    )
+                  : const SizedBox(height: 3),
             ),
           ],
         ),
@@ -596,65 +652,40 @@ class _TalentVideoPlayerState extends State<TalentVideoPlayer> {
     );
   }
 
-  Widget _buildActionButton({
-    required IconData icon,
-    required Color color,
-    required String label,
-    VoidCallback? onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 35),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoCard() {
+  // ── Carte infos ─────────────────────────────────────────────
+  Widget _buildInfoCard(String category, String niveau, Color color) {
+    if (category.isEmpty && niveau.isEmpty) return const SizedBox.shrink();
     return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.2)),
+            color: Colors.black.withOpacity(0.35),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: color.withOpacity(0.25)),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 4,
             children: [
-              Text(
-                "${widget.talent['category']?.toUpperCase() ?? 'JOUEUR'} • ${widget.talent['specialty']?.toUpperCase() ?? 'TALENT'}",
-                style: const TextStyle(
-                  color: Colors.greenAccent,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 12,
+              if (category.isNotEmpty)
+                _infoChip(Icons.place_rounded, category, color),
+              if (niveau.isNotEmpty)
+                _infoChip(Icons.bar_chart_rounded, niveau, Colors.amber),
+              if (widget.talent['age'] != null)
+                _infoChip(
+                  Icons.cake_outlined,
+                  "${widget.talent['age']} ans",
+                  Colors.white54,
                 ),
-              ),
-              Text(
-                "${widget.talent['age'] ?? '--'} ANS • ${widget.talent['height'] ?? '--'} CM • PIED ${widget.talent['foot']?.toString().toUpperCase() ?? '--'}",
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
+              if (widget.talent['height'] != null)
+                _infoChip(
+                  Icons.height_rounded,
+                  "${widget.talent['height']} cm",
+                  Colors.white54,
                 ),
-              ),
             ],
           ),
         ),
@@ -662,13 +693,90 @@ class _TalentVideoPlayerState extends State<TalentVideoPlayer> {
     );
   }
 
-  @override
-  void dispose() {
-    _controlsTimer?.cancel();
-    _controller.dispose();
-    super.dispose();
+  Widget _infoChip(IconData icon, String label, Color color) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, color: color, size: 11),
+      const SizedBox(width: 4),
+      Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ],
+  );
+
+  Widget _controlBtn(IconData icon, VoidCallback onTap, {double size = 52}) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.4),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: Colors.white, size: size * 0.65),
+        ),
+      );
+
+  Widget _actionBtn({
+    required IconData icon,
+    required Color color,
+    required String label,
+    VoidCallback? onTap,
+    Color? glowColor,
+  }) => GestureDetector(
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.35),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withOpacity(0.12)),
+              boxShadow: glowColor != null
+                  ? [
+                      BoxShadow(
+                        color: glowColor.withOpacity(0.3),
+                        blurRadius: 10,
+                      ),
+                    ]
+                  : [],
+            ),
+            child: Icon(icon, color: color, size: 26),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  String _fmtCount(int n) {
+    if (n == 0) return '0';
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
+    return '$n';
   }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// ANIMATIONS CŒUR
+// ═══════════════════════════════════════════════════════════════
 
 class _LionHeartPart extends StatefulWidget {
   final Color color;
@@ -687,6 +795,7 @@ class _LionHeartPart extends StatefulWidget {
 class _LionHeartPartState extends State<_LionHeartPart>
     with SingleTickerProviderStateMixin {
   late AnimationController _anim;
+
   @override
   void initState() {
     super.initState();
@@ -703,13 +812,17 @@ class _LionHeartPartState extends State<_LionHeartPart>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _anim,
-      builder: (context, child) {
-        double val = Curves.elasticOut.transform(_anim.value);
+      builder: (_, __) {
+        final val = Curves.elasticOut.transform(_anim.value);
         return Opacity(
           opacity: (1.0 - _anim.value).clamp(0, 1),
           child: Transform.scale(
             scale: val * widget.size / 100,
-            child: Icon(Icons.favorite, color: widget.color, size: widget.size),
+            child: Icon(
+              Icons.favorite_rounded,
+              color: widget.color,
+              size: widget.size,
+            ),
           ),
         );
       },
@@ -724,8 +837,10 @@ class _LionHeartPartState extends State<_LionHeartPart>
 }
 
 class _LionStarPart extends StatefulWidget {
+  final Color color;
   final int delay;
-  const _LionStarPart({required this.delay});
+  const _LionStarPart({required this.color, required this.delay});
+
   @override
   State<_LionStarPart> createState() => _LionStarPartState();
 }
@@ -733,6 +848,7 @@ class _LionStarPart extends StatefulWidget {
 class _LionStarPartState extends State<_LionStarPart>
     with SingleTickerProviderStateMixin {
   late AnimationController _anim;
+
   @override
   void initState() {
     super.initState();
@@ -749,17 +865,19 @@ class _LionStarPartState extends State<_LionStarPart>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _anim,
-      builder: (context, child) {
-        double val = Curves.easeOutBack.transform(_anim.value);
+      builder: (_, __) {
+        final val = Curves.easeOutBack.transform(_anim.value);
         return Opacity(
           opacity: (1.2 - _anim.value).clamp(0, 1),
           child: Transform.scale(
             scale: val * 1.5,
-            child: const Icon(
-              Icons.star,
-              color: Colors.yellow,
-              size: 60,
-              shadows: [Shadow(color: Colors.orange, blurRadius: 20)],
+            child: Icon(
+              Icons.auto_awesome_rounded,
+              color: widget.color,
+              size: 55,
+              shadows: [
+                Shadow(color: widget.color.withOpacity(0.5), blurRadius: 20),
+              ],
             ),
           ),
         );

@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'basketball_standings_screen.dart';
-import 'handball_standings_screen.dart'; // Importation de ta nouvelle page handball
+import 'handball_standings_screen.dart';
+import 'athletics_standings_screen.dart';
+import 'tennis_standings_screen.dart';
+import 'volleyball_standings_screen.dart';
+import 'karate_standings_screen.dart';
+import 'boxe_standings_screen.dart';
+import 'mma_standings_screen.dart';
 
 class StandingsScreen extends StatefulWidget {
   const StandingsScreen({super.key});
@@ -57,9 +63,26 @@ class _StandingsScreenState extends State<StandingsScreen> {
 
   // Couleur thématique dynamique
   Color get _activeColor {
-    if (selectedSport == "basketball") return const Color(0xFFFFA500);
-    if (selectedSport == "handball") return const Color(0xFFFF3131);
-    return const Color(0xFF00FF85);
+    switch (selectedSport) {
+      case 'basketball':
+        return const Color(0xFFFFA500);
+      case 'handball':
+        return const Color(0xFFFF3131);
+      case 'athletics':
+        return const Color(0xFFFF6B00);
+      case 'tennis':
+        return const Color(0xFFC8FF00);
+      case 'volleyball':
+        return const Color(0xFF9B59FF);
+      case 'karate':
+        return const Color(0xFFFF0044);
+      case 'boxing':
+        return const Color(0xFFFFB800);
+      case 'mma':
+        return const Color(0xFF00FF85);
+      default:
+        return const Color(0xFF00FF85);
+    }
   }
 
   // --- COMPOSANTS UI DE DONNÉES ---
@@ -103,7 +126,7 @@ class _StandingsScreenState extends State<StandingsScreen> {
       ),
       body: Column(
         children: [
-          _buildSportToggle(), // Sélecteur Foot / Basket / Hand
+          _buildSportToggle(),
           isLoadingLeagues
               ? Expanded(
                   child: Center(
@@ -117,22 +140,35 @@ class _StandingsScreenState extends State<StandingsScreen> {
   }
 
   Widget _buildConditionalBody() {
-    if (selectedSport == "basketball") {
-      return const BasketballStandingsScreen();
-    } else if (selectedSport == "handball") {
-      return const HandballStandingsScreen(); // APPEL DE TA PAGE HANDBALL
-    } else {
-      return Column(
-        children: [
-          _buildLeagueSelector(),
-          _buildHeader(),
-          Expanded(child: _buildRealtimeStandings()),
-        ],
-      );
+    switch (selectedSport) {
+      case 'basketball':
+        return const BasketballStandingsScreen();
+      case 'handball':
+        return const HandballStandingsScreen();
+      case 'athletics':
+        return const AthleticsStandingsScreen();
+      case 'tennis':
+        return const TennisStandingsScreen();
+      case 'volleyball':
+        return const VolleyballStandingsScreen();
+      case 'karate':
+        return const KarateStandingsScreen();
+      case 'boxing':
+        return const BoxeStandingsScreen();
+      case 'mma':
+        return const MmaStandingsScreen();
+      default:
+        return Column(
+          children: [
+            _buildLeagueSelector(),
+            _buildHeader(),
+            Expanded(child: _buildRealtimeStandings()),
+          ],
+        );
     }
   }
 
-  // --- COMMUTATEUR DE SPORT (FOOT / BASKET / HAND) ---
+  // --- COMMUTATEUR DE SPORT ---
   Widget _buildSportToggle() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 15),
@@ -161,6 +197,48 @@ class _StandingsScreenState extends State<StandingsScreen> {
               Icons.sports_handball,
               "handball",
               const Color(0xFFFF3131),
+            ),
+            const SizedBox(width: 25),
+            _sportButton(
+              "ATHLÉTISME",
+              Icons.directions_run,
+              "athletics",
+              const Color(0xFFFF6B00),
+            ),
+            const SizedBox(width: 25),
+            _sportButton(
+              "TENNIS",
+              Icons.sports_tennis,
+              "tennis",
+              const Color(0xFFC8FF00),
+            ),
+            const SizedBox(width: 25),
+            _sportButton(
+              "VOLLEYBALL",
+              Icons.sports_volleyball,
+              "volleyball",
+              const Color(0xFF9B59FF),
+            ),
+            const SizedBox(width: 25),
+            _sportButton(
+              "KARATÉ",
+              Icons.sports_martial_arts,
+              "karate",
+              const Color(0xFFFF0044),
+            ),
+            const SizedBox(width: 25),
+            _sportButton(
+              "BOXE",
+              Icons.sports_mma,
+              "boxing",
+              const Color(0xFFFFB800),
+            ),
+            const SizedBox(width: 25),
+            _sportButton(
+              "MMA",
+              Icons.sports_mma,
+              "mma",
+              const Color(0xFF00FF85),
             ),
             const SizedBox(width: 20),
           ],

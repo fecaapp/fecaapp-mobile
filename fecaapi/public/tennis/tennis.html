@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FECAAPP - TENNIS ELITE COMMAND v5.2 PRO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../config.js"></script>
+    <script src="script.js" defer></script>
+    <style>
+        :root {
+            --primary: #C8FF00;
+            --primary-glow: rgba(200, 255, 0, 0.12);
+            --bg: #050505; --bg2: #0D0D0D; --bg3: #111111;
+            --border: rgba(255,255,255,0.07);
+            --text: #FFFFFF; --text-dim: rgba(255,255,255,0.4);
+            --blue: #00D1FF; --red: #FF3B3B; --gold: #FFD700;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif; min-height:100vh; }
+
+        .admin-lock { background:#000; border-bottom:2px solid var(--primary); padding:10px 20px; display:flex; justify-content:center; align-items:center; gap:15px; font-family:'Orbitron',sans-serif; font-size:11px; flex-wrap:wrap; }
+        .admin-lock input { background:#111; border:1px solid #333; color:var(--primary); padding:5px 10px; border-radius:4px; outline:none; }
+        .admin-lock button { background:var(--primary); color:#000; border:none; padding:5px 15px; border-radius:4px; font-weight:bold; cursor:pointer; text-transform:uppercase; font-family:'Orbitron',sans-serif; }
+
+        .header { background:linear-gradient(135deg,#0a0a0a 0%,#0d0d0d 100%); border-bottom:1px solid var(--border); padding:15px 30px; display:flex; justify-content:space-between; align-items:center; }
+        .logo-area { display:flex; align-items:center; gap:15px; }
+        .sport-badge { background:var(--primary); color:#000; padding:4px 10px; border-radius:4px; font-family:'Orbitron',sans-serif; font-size:10px; font-weight:900; }
+        .header h1 { font-family:'Orbitron',sans-serif; font-size:14px; font-weight:900; color:var(--primary); letter-spacing:2px; }
+        #status-io { font-family:'Orbitron',sans-serif; font-size:10px; color:var(--text-dim); }
+
+        .main-layout { display:flex; min-height:calc(100vh - 100px); }
+
+        .side-panel { width:300px; min-width:300px; background:var(--bg2); border-right:1px solid var(--border); padding:20px; display:flex; flex-direction:column; gap:15px; overflow-y:auto; }
+        .panel-card { background:var(--bg3); border-radius:10px; padding:15px; border:1px solid var(--border); }
+        .panel-card h3 { font-family:'Orbitron',sans-serif; font-size:10px; font-weight:700; margin-bottom:12px; letter-spacing:1px; display:flex; align-items:center; gap:8px; }
+        .panel-card label { display:block; font-size:10px; color:var(--text-dim); margin-bottom:4px; margin-top:8px; text-transform:uppercase; letter-spacing:1px; }
+        .panel-card input, .panel-card select { width:100%; background:#1a1a1a; border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:6px; font-family:'Rajdhani',sans-serif; font-size:12px; outline:none; }
+
+        .btn { width:100%; padding:9px; border-radius:6px; border:none; cursor:pointer; font-family:'Orbitron',sans-serif; font-size:10px; font-weight:700; letter-spacing:1px; margin-top:12px; transition:opacity 0.15s; }
+        .btn:hover { opacity:0.85; }
+        .btn-lime { background:var(--primary); color:#000; }
+        .btn-blue { background:var(--blue); color:#000; }
+        .btn-red  { background:var(--red); color:#fff; }
+
+        .lime-border { border-color:var(--primary) !important; }
+        .blue-border { border-color:var(--blue) !important; }
+        .red-border  { border-color:var(--red) !important; }
+
+        .regie-area { flex:1; padding:25px; overflow-y:auto; background:var(--bg); }
+        .regie-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; gap:15px; color:var(--text-dim); }
+        .regie-empty .icon-big { font-size:60px; opacity:0.3; }
+        .regie-empty p { font-family:'Orbitron',sans-serif; font-size:11px; letter-spacing:2px; }
+
+        .scoreboard { background:var(--bg2); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:20px; }
+        .score-header { background:linear-gradient(135deg, rgba(200,255,0,0.1), transparent); padding:15px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); }
+        .match-title { font-family:'Orbitron',sans-serif; font-size:12px; color:var(--primary); font-weight:900; }
+        .surface-badge { padding:3px 10px; border-radius:4px; font-family:'Orbitron',sans-serif; font-size:9px; font-weight:700; }
+        .surface-gazon  { background:rgba(0,200,80,0.15);   color:#00C850; border:1px solid #00C850; }
+        .surface-terre  { background:rgba(180,60,0,0.2);    color:#B43C00; border:1px solid #C85A00; }
+        .surface-dur    { background:rgba(0,100,200,0.15);  color:#4499FF; border:1px solid #4499FF; }
+        .surface-indoor { background:rgba(150,100,255,0.15);color:#AA77FF; border:1px solid #AA77FF; }
+
+        .score-grid        { display:grid; grid-template-columns: 3fr 60px 60px 60px 60px 60px 80px; align-items:center; }
+        .score-grid-header { display:grid; grid-template-columns: 3fr 60px 60px 60px 60px 60px 80px; padding:8px 20px; border-bottom:1px solid var(--border); }
+        .sg-lbl { font-family:'Orbitron',sans-serif; font-size:9px; color:var(--text-dim); text-align:center; font-weight:700; }
+        .sg-lbl:first-child { text-align:left; }
+
+        .player-row { padding:15px 20px; border-bottom:1px solid rgba(255,255,255,0.03); }
+        .player-row:last-child { border-bottom:none; }
+        .player-row.serving { background:rgba(200,255,0,0.03); }
+        .player-info { display:flex; align-items:center; gap:10px; }
+        .serving-dot { width:8px; height:8px; border-radius:50%; background:var(--primary); flex-shrink:0; }
+        .serving-dot.hidden { opacity:0; }
+        .player-name { font-size:14px; font-weight:700; color:var(--text); }
+        .player-country { font-size:10px; color:var(--text-dim); }
+        .player-seed { font-size:9px; color:var(--primary); font-family:'Orbitron',sans-serif; font-weight:700; }
+        .set-score { text-align:center; font-family:'Orbitron',sans-serif; font-size:16px; font-weight:900; color:var(--text-dim); }
+        .set-score.current { color:var(--text); }
+        .set-score.won { color:var(--primary); }
+        .game-score { text-align:center; font-family:'Orbitron',sans-serif; font-size:22px; font-weight:900; color:var(--primary); }
+
+        .tennis-stat { margin-bottom:16px; }
+        .tennis-stat-header { display:flex; justify-content:space-between; margin-bottom:6px; }
+        .tennis-stat-val { font-family:'Orbitron',sans-serif; font-size:13px; font-weight:900; color:var(--text); }
+        .tennis-stat-lbl { font-size:9px; color:var(--text-dim); text-align:center; text-transform:uppercase; letter-spacing:1px; }
+        .tennis-stat-bar { height:4px; background:var(--bg3); border-radius:2px; overflow:hidden; position:relative; }
+        .tennis-stat-fill-left  { position:absolute; left:0;  height:100%; background:var(--primary); border-radius:2px; }
+        .tennis-stat-fill-right { position:absolute; right:0; height:100%; background:var(--blue);    border-radius:2px; }
+
+        .score-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+        .score-btn { padding:10px; border-radius:8px; border:none; cursor:pointer; font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; transition:all 0.2s; }
+        .score-btn-p1 { background:rgba(200,255,0,0.1); color:var(--primary); border:1px solid var(--primary); }
+        .score-btn-p1:hover { background:var(--primary); color:#000; }
+        .score-btn-p2 { background:rgba(0,209,255,0.1); color:var(--blue); border:1px solid var(--blue); }
+        .score-btn-p2:hover { background:var(--blue); color:#000; }
+
+        .point-log { max-height:200px; overflow-y:auto; margin-top:10px; }
+        .point-item { display:flex; gap:10px; align-items:center; padding:5px 8px; border-radius:4px; margin-bottom:3px; font-size:11px; background:var(--bg3); }
+        .point-time { color:var(--text-dim); font-size:9px; font-family:'Orbitron',sans-serif; }
+        .point-desc { color:var(--text); }
+        .point-winner-p1 { border-left:2px solid var(--primary); }
+        .point-winner-p2 { border-left:2px solid var(--blue); }
+
+        .setup-players { display:grid; grid-template-columns:1fr auto 1fr; gap:8px; align-items:start; margin:8px 0; }
+        .vs-sep { display:flex; align-items:center; justify-content:center; padding-top:24px; color:var(--text-dim); font-family:'Orbitron',sans-serif; font-size:11px; }
+
+        .tabs { display:flex; gap:8px; margin-bottom:20px; }
+        .tab-btn { padding:7px 16px; border-radius:6px; background:var(--bg2); border:1px solid var(--border); color:var(--text-dim); font-family:'Orbitron',sans-serif; font-size:9px; cursor:pointer; font-weight:700; }
+        .tab-btn.active { background:var(--primary-glow); border-color:var(--primary); color:var(--primary); }
+
+        .live-badge { background:var(--red); color:#fff; padding:3px 8px; border-radius:4px; font-family:'Orbitron',sans-serif; font-size:9px; font-weight:700; animation:blink 1s infinite; }
+        @keyframes blink { 0%,100%{opacity:1;}50%{opacity:0.4;} }
+
+        .notif { position:fixed; bottom:20px; right:20px; background:var(--bg2); border:1px solid var(--primary); color:var(--text); padding:12px 20px; border-radius:8px; font-family:'Orbitron',sans-serif; font-size:11px; display:none; z-index:1000; }
+        ::-webkit-scrollbar { width:4px; }
+        ::-webkit-scrollbar-track { background:var(--bg2); }
+        ::-webkit-scrollbar-thumb { background:var(--primary); border-radius:2px; }
+    </style>
+</head>
+<body>
+
+<div class="admin-lock">
+    <span style="color:var(--primary);">[ SÉCURITÉ ADMIN ]</span>
+    <input type="email" id="admin-email" placeholder="Email Command">
+    <input type="password" id="admin-password" placeholder="Clé d'accès">
+    <button onclick="loginAdmin()">DÉVERROUILLER LE SYSTÈME</button>
+    <span id="auth-msg" style="color:#666;">SYSTÈME VERROUILLÉ</span>
+</div>
+
+<div class="header">
+    <div class="logo-area">
+        <div class="sport-badge">🎾 TEN</div>
+        <h1>FECAAPP — TENNIS ELITE COMMAND v5.2</h1>
+    </div>
+    <div id="status-io">📡 SIGNAL LIVE DÉCONNECTÉ</div>
+</div>
+
+<div class="main-layout">
+    <div class="side-panel">
+
+        <div class="panel-card lime-border">
+            <h3><span>📡</span> <span style="color:var(--primary);">PILOTAGE DIRECT</span></h3>
+            <label>Match à piloter</label>
+            <select id="matchSelector"><option value="">Chargement...</option></select>
+            <button class="btn btn-lime" onclick="lancerRegie()">LANCER LA RÉGIE</button>
+        </div>
+
+        <div class="panel-card blue-border">
+            <h3><span>🎾</span> <span style="color:var(--blue);">SCORE EN DIRECT</span></h3>
+            <label>Serveur actuel</label>
+            <select id="serverSelect">
+                <option value="p1">JOUEUR 1</option>
+                <option value="p2">JOUEUR 2</option>
+            </select>
+            <div class="score-actions">
+                <button class="score-btn score-btn-p1" onclick="addPoint('p1')">POINT J1 🎾</button>
+                <button class="score-btn score-btn-p2" onclick="addPoint('p2')">POINT J2 🎾</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
+                <button class="score-btn score-btn-p1" onclick="addAce('p1')" style="font-size:9px;">ACE J1 🚀</button>
+                <button class="score-btn score-btn-p2" onclick="addAce('p2')" style="font-size:9px;">ACE J2 🚀</button>
+                <button class="score-btn score-btn-p1" onclick="addDF('p1')"  style="font-size:9px;">DF J1 ✖️</button>
+                <button class="score-btn score-btn-p2" onclick="addDF('p2')"  style="font-size:9px;">DF J2 ✖️</button>
+            </div>
+            <button class="btn btn-red" style="margin-top:8px;font-size:9px;" onclick="undoPoint()">↩ ANNULER DERNIER POINT</button>
+        </div>
+
+        <div class="panel-card red-border">
+            <h3><span>📅</span> <span style="color:var(--red);">NOUVEAU MATCH</span></h3>
+            <label>Tournoi / Compétition (Nom de la ligue)</label>
+            <input type="text" id="setupTournoi" placeholder="Ex: OPEN CAMEROUN">
+            <label>URL Logo Tournoi</label>
+            <input type="text" id="setupTournoiLogo" placeholder="https://...">
+            <label>Surface</label>
+            <select id="setupSurface">
+                <option value="dur">DUR (Hard Court)</option>
+                <option value="terre">TERRE BATTUE (Clay)</option>
+                <option value="gazon">GAZON (Grass)</option>
+                <option value="indoor">INDOOR (Carpet)</option>
+            </select>
+            <label>Tour / Ronde</label>
+            <select id="setupTour">
+                <option value="1er_tour">1ER TOUR</option>
+                <option value="2e_tour">2E TOUR</option>
+                <option value="3e_tour">3E TOUR</option>
+                <option value="huitieme">HUITIÈMES</option>
+                <option value="quart">QUARTS DE FINALE</option>
+                <option value="demi">DEMI-FINALES</option>
+                <option value="finale">FINALE</option>
+            </select>
+            <label>Format</label>
+            <select id="setupFormat">
+                <option value="3sets">MEILLEUR DE 3 SETS</option>
+                <option value="5sets">MEILLEUR DE 5 SETS</option>
+            </select>
+            <label>Genre</label>
+            <select id="setupGender">
+                <option value="Masculin">MASCULIN (ATP)</option>
+                <option value="Féminin">FÉMININ (WTA)</option>
+                <option value="Double">DOUBLE</option>
+                <option value="Mixte">DOUBLE MIXTE</option>
+            </select>
+            <div class="setup-players">
+                <div>
+                    <label>Joueur 1</label>
+                    <input type="text" id="setupP1" placeholder="Nom Joueur 1">
+                    <label>Pays J1</label>
+                    <input type="text" id="setupP1Country" placeholder="CMR">
+                    <label>Classement J1</label>
+                    <input type="text" id="setupP1Seed" placeholder="Ex: [3] ATP">
+                </div>
+                <div class="vs-sep">VS</div>
+                <div>
+                    <label>Joueur 2</label>
+                    <input type="text" id="setupP2" placeholder="Nom Joueur 2">
+                    <label>Pays J2</label>
+                    <input type="text" id="setupP2Country" placeholder="CMR">
+                    <label>Classement J2</label>
+                    <input type="text" id="setupP2Seed" placeholder="Ex: [5] ATP">
+                </div>
+            </div>
+            <label>Date &amp; Heure</label>
+            <input type="datetime-local" id="setupTime">
+            <button class="btn btn-lime" onclick="createMatch()">ENREGISTRER EN BASE</button>
+        </div>
+
+        <div class="panel-card" style="border-color:rgba(200,255,0,0.3)">
+            <h3><span>🏆</span> <span style="color:var(--primary);">CLASSEMENT ATP/WTA</span></h3>
+            <label>Ligue cible</label>
+            <select id="standingsLeagueSelector"><option value="">Chargement...</option></select>
+            <label>Joueur</label>
+            <input type="text" id="rankPlayer" placeholder="Nom Joueur">
+            <label>Points gagnés</label>
+            <input type="number" id="rankPoints" placeholder="Ex: 250">
+            <label>Genre</label>
+            <select id="rankGender">
+                <option value="Masculin">MASCULIN</option>
+                <option value="Féminin">FÉMININ</option>
+            </select>
+            <button class="btn btn-lime" onclick="addRanking()">AJOUTER AU CLASSEMENT</button>
+        </div>
+
+    </div>
+
+    <div class="regie-area" id="regieContainer">
+        <div class="regie-empty">
+            <div class="icon-big">🎾</div>
+            <p>SÉLECTIONNEZ UN MATCH</p>
+            <p style="font-size:9px;opacity:0.5;margin-top:5px;">ET LANCEZ LA RÉGIE POUR PILOTER EN DIRECT</p>
+        </div>
+    </div>
+</div>
+
+<div class="notif" id="notif"></div>
+</body>
+</html>

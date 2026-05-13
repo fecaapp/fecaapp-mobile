@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FecaAI — Tour de Contrôle</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --green:   #00A651;
+      --green2:  #00C962;
+      --orange:  #FF6B1A;
+      --gold:    #FFD700;
+      --blue:    #00D1FF;
+      --purple:  #A855F7;
+      --red:     #FF4D4D;
+      --dark:    #080808;
+      --card:    #111111;
+      --card2:   #161616;
+      --border:  #1E1E1E;
+      --text:    #E8E8E8;
+      --muted:   #555555;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--dark);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── AUTH BAR ── */
+    .auth-bar {
+      background: #0C0C0C;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 28px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+    }
+    .auth-bar .logo {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--green);
+      letter-spacing: 3px;
+      margin-right: 10px;
+    }
+    .auth-bar input {
+      padding: 7px 14px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      width: 200px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .auth-bar input:focus { border-color: var(--green); }
+    .btn-auth {
+      padding: 7px 20px;
+      background: var(--green);
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: opacity 0.2s;
+    }
+    .btn-auth:hover { opacity: 0.85; }
+    #authStatus {
+      font-size: 11px;
+      font-family: 'Space Mono', monospace;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    /* ── LAYOUT ── */
+    .app {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 240px;
+      background: #0A0A0A;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 0;
+      flex-shrink: 0;
+    }
+    .sidebar-title {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 3px;
+      color: var(--muted);
+      padding: 0 24px 16px;
+      text-transform: uppercase;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 24px;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: all 0.2s;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .nav-item:hover { color: var(--text); background: rgba(255,255,255,0.02); }
+    .nav-item.active { color: var(--text); border-left-color: var(--green); background: rgba(0,166,81,0.06); }
+    .nav-item .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+    }
+    .nav-item.active .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .nav-item span { font-size: 16px; }
+
+    /* Live log */
+    .log-area {
+      margin-top: auto;
+      padding: 16px;
+    }
+    .log-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      height: 130px;
+      overflow-y: auto;
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+    }
+    .log-entry {
+      margin-bottom: 4px;
+      padding-left: 8px;
+      border-left: 2px solid var(--green);
+      color: #666;
+      line-height: 1.5;
+    }
+    .log-entry.err { border-left-color: var(--red); color: var(--red); }
+    .log-entry.ok  { border-left-color: var(--green); color: var(--green); }
+
+    /* ── MAIN ── */
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 36px 40px;
+    }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    .section-title {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 6px;
+      letter-spacing: -0.5px;
+    }
+    .section-sub {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 28px;
+    }
+
+    /* ── STAT CARDS (stats section) ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+    }
+    .stat-card .label { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+    .stat-card .value { font-size: 32px; font-weight: 800; line-height: 1; }
+    .stat-card .delta { font-size: 11px; margin-top: 6px; }
+    .stat-card.green .value { color: var(--green); }
+    .stat-card.orange .value { color: var(--orange); }
+    .stat-card.blue .value { color: var(--blue); }
+    .stat-card.purple .value { color: var(--purple); }
+
+    /* Table utilisateurs */
+    .table-wrap {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .table-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .table-header h3 { font-size: 14px; font-weight: 700; }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      padding: 12px 20px;
+      text-align: left;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 14px 20px;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .badge.joueur     { background: rgba(0,166,81,0.15);   color: var(--green); }
+    .badge.supporter  { background: rgba(0,209,255,0.12);  color: var(--blue); }
+    .badge.club       { background: rgba(168,85,247,0.12); color: var(--purple); }
+    .badge.journaliste{ background: rgba(255,107,26,0.12); color: var(--orange); }
+    .badge.agent      { background: rgba(0,166,81,0.12);   color: #00C962; }
+    .badge.recruteur  { background: rgba(255,215,0,0.12);  color: var(--gold); }
+    .badge.talent     { background: rgba(255,215,0,0.12);  color: var(--gold); }
+
+    .role-select {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-family: 'Syne', sans-serif;
+      cursor: pointer;
+    }
+
+    /* ── FORM ── */
+    .form-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+    .form-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 20px; color: var(--text); }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus { border-color: var(--green); }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+
+    .mt16 { margin-top: 16px; }
+
+    .btn {
+      padding: 13px 24px;
+      border: none;
+      border-radius: 10px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      transition: all 0.2s;
+    }
+    .btn:hover { opacity: 0.85; transform: translateY(-1px); }
+    .btn-green  { background: var(--green);  color: #000; }
+    .btn-orange { background: var(--orange); color: #000; }
+    .btn-blue   { background: var(--blue);   color: #000; }
+    .btn-purple { background: var(--purple); color: #fff; }
+    .btn-gold   { background: var(--gold);   color: #000; }
+    .btn-full   { width: 100%; text-align: center; }
+    .btn-sm     { padding: 6px 14px; font-size: 11px; }
+    .btn-danger { background: none; border: 1px solid var(--red); color: var(--red); }
+
+    /* ── SÉANCES ── */
+    .seances-list { display: flex; flex-direction: column; gap: 10px; }
+    .seance-item {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .seance-order {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: rgba(0,166,81,0.12);
+      color: var(--green);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 14px;
+      flex-shrink: 0;
+    }
+    .seance-info { flex: 1; }
+    .seance-info .name { font-size: 14px; font-weight: 700; }
+    .seance-info .meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .lock-toggle {
+      width: 40px; height: 22px;
+      background: var(--border);
+      border-radius: 11px;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.3s;
+      border: none;
+    }
+    .lock-toggle.unlocked { background: var(--green); }
+    .lock-toggle::after {
+      content: '';
+      position: absolute;
+      width: 16px; height: 16px;
+      background: white;
+      border-radius: 50%;
+      top: 3px; left: 3px;
+      transition: transform 0.3s;
+    }
+    .lock-toggle.unlocked::after { transform: translateX(18px); }
+
+    /* ── PROGRESSION ── */
+    .prog-card {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 10px;
+    }
+    .prog-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .prog-name { font-size: 13px; font-weight: 700; }
+    .prog-pct { font-size: 13px; font-weight: 800; color: var(--green); }
+    .prog-bar { height: 6px; background: var(--border); border-radius: 10px; overflow: hidden; }
+    .prog-fill { height: 100%; background: linear-gradient(90deg, var(--green), var(--green2)); border-radius: 10px; transition: width 0.5s ease; }
+
+    /* ── SCROLL ── */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+<!-- AUTH BAR -->
+<div class="auth-bar">
+  <span class="logo">FECAAI</span>
+  <span style="font-size:11px; color:var(--muted); margin-right:6px;">TOUR DE CONTRÔLE</span>
+  <input type="email" id="adminEmail" placeholder="Email admin" />
+  <input type="password" id="adminPassword" placeholder="Mot de passe" />
+  <button class="btn-auth" onclick="loginAdmin()">CONNEXION</button>
+  <span id="authStatus">⬤ Déconnecté</span>
+</div>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-title">Navigation</div>
+
+    <div class="nav-item active" onclick="switchTab('stats', this)">
+      <span>📊</span><div class="dot"></div>Statistiques
+    </div>
+    <div class="nav-item" onclick="switchTab('users', this)">
+      <span>👥</span><div class="dot"></div>Utilisateurs
+    </div>
+    <div class="nav-item" onclick="switchTab('seances', this)">
+      <span>🏋️</span><div class="dot"></div>Séances
+    </div>
+    <div class="nav-item" onclick="switchTab('progression', this)">
+      <span>📈</span><div class="dot"></div>Progression
+    </div>
+    <div class="nav-item" onclick="switchTab('nutrition', this)">
+      <span>🥗</span><div class="dot"></div>Nutrition
+    </div>
+    <div class="nav-item" onclick="switchTab('roles', this)">
+      <span>🎭</span><div class="dot"></div>Rôles
+    </div>
+    <div class="nav-item" onclick="switchTab('ai_logs', this)">
+      <span>🤖</span><div class="dot"></div>Logs FecaAI
+    </div>
+
+    <div class="log-area">
+      <div style="font-size:10px; color:var(--muted); margin-bottom:8px; letter-spacing:1px;">ACTIVITÉ LIVE</div>
+      <div class="log-box" id="logs">
+        <div class="log-entry">Système prêt...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <main>
+
+    <!-- ── STATISTIQUES ── -->
+    <div id="section-stats" class="section active">
+      <div class="section-title" style="color:var(--green)">Tableau de Bord</div>
+      <div class="section-sub">Vue globale de FecaApp en temps réel</div>
+
+      <div class="stats-grid">
+        <div class="stat-card green">
+          <div class="label">Utilisateurs Total</div>
+          <div class="value" id="stat-users">—</div>
+          <div class="delta" style="color:var(--green)">↑ actifs ce mois</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="label">Conv. FecaAI</div>
+          <div class="value" id="stat-conv">—</div>
+          <div class="delta" style="color:var(--orange)">messages échangés</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="label">Séances créées</div>
+          <div class="value" id="stat-seances">—</div>
+          <div class="delta" style="color:var(--blue)">programmes actifs</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="label">Rôles actifs</div>
+          <div class="value" id="stat-roles">7</div>
+          <div class="delta" style="color:var(--purple)">joueur→recruteur</div>
+        </div>
+      </div>
+
+      <!-- Répartition rôles -->
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>Répartition par rôle</h3>
+          <button class="btn btn-green btn-sm" onclick="loadStats()">↻ Actualiser</button>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Rôle</th><th>Utilisateurs</th><th>% du total</th><th>Conv. IA</th>
+          </tr></thead>
+          <tbody id="roles-stats-body">
+            <tr><td colspan="4" style="color:var(--muted); text-align:center; padding:30px;">Connectez-vous pour voir les données</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── UTILISATEURS ── -->
+    <div id="section-users" class="section">
+      <div class="section-title" style="color:var(--blue)">Gestion Utilisateurs</div>
+      <div class="section-sub">Voir, modifier les rôles et gérer les comptes</div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>Tous les utilisateurs</h3>
+          <div style="display:flex; gap:10px;">
+            <input style="padding:7px 12px; background:var(--card2); border:1px solid var(--border); color:var(--text); border-radius:8px; font-size:12px; width:200px; outline:none;"
+              placeholder="Rechercher..." id="userSearch" oninput="filterUsers()" />
+            <button class="btn btn-blue btn-sm" onclick="loadUsers()">↻ Actualiser</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Nom</th><th>Email</th><th>Rôle</th><th>Sport</th><th>Certifié</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="users-body">
+            <tr><td colspan="6" style="color:var(--muted); text-align:center; padding:30px;">Connectez-vous pour voir les données</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── SÉANCES ── -->
+    <div id="section-seances" class="section">
+      <div class="section-title" style="color:var(--orange)">Gestion des Séances</div>
+      <div class="section-sub">Créer, ordonner et verrouiller/déverrouiller les séances d'entraînement</div>
+
+      <!-- Formulaire création -->
+      <div class="form-card">
+        <h3>➕ Nouvelle séance d'entraînement</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Titre de la séance</label>
+            <input type="text" id="s-title" placeholder="ex: Sprint 6×100m" />
+          </div>
+          <div class="form-group">
+            <label>Ordre (numéro)</label>
+            <input type="number" id="s-order" placeholder="ex: 1" min="1" />
+          </div>
+          <div class="form-group">
+            <label>Durée estimée</label>
+            <input type="text" id="s-duration" placeholder="ex: 55 min" />
+          </div>
+          <div class="form-group">
+            <label>Rôle cible</label>
+            <select id="s-role">
+              <option value="tous">Tous les rôles</option>
+              <option value="joueur">Joueur</option>
+              <option value="athlète">Athlète</option>
+              <option value="talent">Talent</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group mt16">
+          <label>Description</label>
+          <textarea id="s-desc" placeholder="Décrivez les objectifs de cette séance..."></textarea>
+        </div>
+        <div class="form-grid mt16">
+          <div class="form-group">
+            <label>Exercice 1</label>
+            <input type="text" id="s-ex1" placeholder="ex: Échauffement 10min" />
+          </div>
+          <div class="form-group">
+            <label>Exercice 2</label>
+            <input type="text" id="s-ex2" placeholder="ex: Fractionné 6×100m" />
+          </div>
+          <div class="form-group">
+            <label>Exercice 3</label>
+            <input type="text" id="s-ex3" placeholder="ex: Gainage 3×60s" />
+          </div>
+          <div class="form-group">
+            <label>Exercice 4</label>
+            <input type="text" id="s-ex4" placeholder="ex: Étirements 10min" />
+          </div>
+        </div>
+        <button class="btn btn-orange btn-full mt16" onclick="createSeance()">CRÉER LA SÉANCE</button>
+      </div>
+
+      <!-- Liste séances -->
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>Séances enregistrées</h3>
+          <button class="btn btn-orange btn-sm" onclick="loadSeances()">↻ Actualiser</button>
+        </div>
+        <div style="padding:16px;" id="seances-list">
+          <div style="color:var(--muted); text-align:center; padding:20px;">Connectez-vous pour voir les séances</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PROGRESSION ── -->
+    <div id="section-progression" class="section">
+      <div class="section-title" style="color:var(--green)">Progression des Utilisateurs</div>
+      <div class="section-sub">Suivre l'évolution mensuelle et le % de complétion des programmes</div>
+
+      <!-- Paramétrer la progression -->
+      <div class="form-card">
+        <h3>⚙️ Mettre à jour la progression d'un utilisateur</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Utilisateur (ID ou email)</label>
+            <input type="text" id="p-user" placeholder="ID utilisateur Supabase" />
+          </div>
+          <div class="form-group">
+            <label>Score mensuel (%)</label>
+            <input type="number" id="p-score" placeholder="ex: 78" min="0" max="100" />
+          </div>
+          <div class="form-group">
+            <label>Séances complétées</label>
+            <input type="number" id="p-seances" placeholder="ex: 12" min="0" />
+          </div>
+          <div class="form-group">
+            <label>Objectif principal</label>
+            <input type="text" id="p-objectif" placeholder="ex: Améliorer vitesse sprint" />
+          </div>
+        </div>
+        <button class="btn btn-green btn-full mt16" onclick="updateProgression()">METTRE À JOUR</button>
+      </div>
+
+      <!-- Vue progressions -->
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>Top progressions ce mois</h3>
+          <button class="btn btn-green btn-sm" onclick="loadProgressions()">↻ Actualiser</button>
+        </div>
+        <div style="padding:16px;" id="prog-list">
+          <div style="color:var(--muted); text-align:center; padding:20px;">Connectez-vous pour voir les progressions</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── NUTRITION ── -->
+    <div id="section-nutrition" class="section">
+      <div class="section-title" style="color:var(--gold)">Plans Nutritionnels</div>
+      <div class="section-sub">Créer des plans alimentaires adaptés au contexte camerounais</div>
+
+      <div class="form-card">
+        <h3>🥗 Nouveau plan nutritionnel</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Titre du plan</label>
+            <input type="text" id="n-title" placeholder="ex: Plan sprint pré-compétition" />
+          </div>
+          <div class="form-group">
+            <label>Rôle cible</label>
+            <select id="n-role">
+              <option value="tous">Tous</option>
+              <option value="joueur">Joueur</option>
+              <option value="athlète">Athlète</option>
+              <option value="talent">Talent</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid-3 mt16">
+          <div class="form-group">
+            <label>Petit-déjeuner</label>
+            <textarea id="n-breakfast" placeholder="ex: Bouillie de fonio, banane plantain, jus de bissap..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Déjeuner</label>
+            <textarea id="n-lunch" placeholder="ex: Riz + poulet + légumes, ndolé..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Dîner</label>
+            <textarea id="n-dinner" placeholder="ex: Soupe de légumes, poisson braisé..."></textarea>
+          </div>
+        </div>
+        <div class="form-group mt16">
+          <label>Conseil hydratation</label>
+          <input type="text" id="n-hydra" placeholder="ex: 2L eau + bissap avant effort" />
+        </div>
+        <button class="btn btn-gold btn-full mt16" onclick="createNutrition()">PUBLIER LE PLAN</button>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>Plans publiés</h3>
+          <button class="btn btn-sm" style="background:var(--gold);color:#000;" onclick="loadNutrition()">↻ Actualiser</button>
+        </div>
+        <table>
+          <thead><tr><th>Titre</th><th>Rôle</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody id="nutrition-body">
+            <tr><td colspan="4" style="color:var(--muted); text-align:center; padding:30px;">Connectez-vous pour voir les plans</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── RÔLES ── */
+    <div id="section-roles" class="section">
+      <div class="section-title" style="color:var(--purple)">Gestion des Rôles</div>
+      <div class="section-sub">Modifier le rôle d'un utilisateur directement</div>
+
+      <div class="form-card">
+        <h3>🎭 Changer le rôle d'un utilisateur</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>ID Utilisateur</label>
+            <input type="text" id="r-uid" placeholder="UUID Supabase de l'utilisateur" />
+          </div>
+          <div class="form-group">
+            <label>Nouveau rôle</label>
+            <select id="r-role">
+              <option value="joueur">Joueur</option>
+              <option value="athlète">Athlète</option>
+              <option value="talent">Talent</option>
+              <option value="supporter">Supporter</option>
+              <option value="club">Club</option>
+              <option value="journaliste">Journaliste</option>
+              <option value="agent">Agent</option>
+              <option value="recruteur">Recruteur</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-purple btn-full mt16" onclick="changeRole()">APPLIQUER LE CHANGEMENT</button>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>Distribution des rôles</h3>
+          <button class="btn btn-purple btn-sm" onclick="loadUsers()">↻ Actualiser</button>
+        </div>
+        <table>
+          <thead><tr><th>Rôle</th><th>Nombre</th><th>Accès FecaAI</th></tr></thead>
+          <tbody id="roles-dist-body">
+            <tr><td colspan="3" style="color:var(--muted); text-align:center; padding:30px;">Connectez-vous pour voir</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── LOGS FECAAI ── -->
+    <div id="section-ai_logs" class="section">
+      <div class="section-title" style="color:var(--green)">Logs FecaAI</div>
+      <div class="section-sub">Historique des conversations IA par utilisateur</div>
+
+      <div class="form-card" style="padding:16px 20px;">
+        <div style="display:flex; gap:14px; align-items:center;">
+          <div class="form-group" style="flex:1; margin:0;">
+            <input type="text" id="log-search" placeholder="Filtrer par user_id ou contenu..." style="margin:0;" />
+          </div>
+          <button class="btn btn-green btn-sm" onclick="loadAILogs()">↻ Charger</button>
+          <button class="btn btn-sm btn-danger" onclick="clearAllLogs()">🗑 Vider tout</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Utilisateur</th><th>Rôle</th><th>Message</th><th>Date</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="logs-body">
+            <tr><td colspan="5" style="color:var(--muted); text-align:center; padding:30px;">Connectez-vous pour voir les logs</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // ── CONFIGURATION ────────────────────────────────────────────────────────────
+  // ⚠️ Remplace par tes vraies valeurs Supabase
+  const SUPABASE_URL      = 'https://xmbuqisqmxigdcuivdjc.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_BwDVbWNnHhMHRhrX66Dw6w__MJusYEj';
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let allUsers = [];
+
+  // ── LOGS ─────────────────────────────────────────────────────────────────────
+  function addLog(msg, type = 'ok') {
+    const box = document.getElementById('logs');
+    const div = document.createElement('div');
+    div.className = `log-entry ${type}`;
+    div.innerText = `${new Date().toLocaleTimeString()} ${msg}`;
+    box.prepend(div);
+    if (box.children.length > 30) box.removeChild(box.lastChild);
+  }
+
+  // ── AUTH ─────────────────────────────────────────────────────────────────────
+  async function loginAdmin() {
+    const email    = document.getElementById('adminEmail').value.trim();
+    const password = document.getElementById('adminPassword').value;
+    const status   = document.getElementById('authStatus');
+
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) {
+      status.innerText = '⬤ Erreur connexion';
+      status.style.color = 'var(--red)';
+      addLog('Connexion échouée : ' + error.message, 'err');
+    } else {
+      status.innerText = '⬤ ' + email;
+      status.style.color = 'var(--green)';
+      addLog('Admin connecté : ' + email, 'ok');
+      loadStats();
+      loadUsers();
+      loadSeances();
+    }
+  }
+
+  // ── NAVIGATION ───────────────────────────────────────────────────────────────
+  function switchTab(tab, btn) {
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById('section-' + tab).classList.add('active');
+
+    if (tab === 'stats')       loadStats();
+    if (tab === 'users')       loadUsers();
+    if (tab === 'seances')     loadSeances();
+    if (tab === 'progression') loadProgressions();
+    if (tab === 'nutrition')   loadNutrition();
+    if (tab === 'roles')       loadUsers();
+    if (tab === 'ai_logs')     loadAILogs();
+  }
+
+  // ── STATS ────────────────────────────────────────────────────────────────────
+  async function loadStats() {
+    try {
+      const { data: users, error: ue } = await sb.from('users').select('id, role');
+      if (ue) throw ue;
+
+      const { data: convs, error: ce } = await sb.from('ai_conversations').select('id, user_id');
+      if (ce) throw ce;
+
+      const { data: seances, error: se } = await sb.from('training_sessions').select('id');
+
+      document.getElementById('stat-users').innerText   = users.length;
+      document.getElementById('stat-conv').innerText    = convs ? convs.length : '—';
+      document.getElementById('stat-seances').innerText = seances ? seances.length : '—';
+
+      // Répartition rôles
+      const roleCount = {};
+      users.forEach(u => { const r = u.role || 'joueur'; roleCount[r] = (roleCount[r] || 0) + 1; });
+
+      const convByUser = {};
+      if (convs) convs.forEach(c => { convByUser[c.user_id] = (convByUser[c.user_id] || 0) + 1; });
+
+      const body = document.getElementById('roles-stats-body');
+      body.innerHTML = '';
+      Object.entries(roleCount).sort((a, b) => b[1] - a[1]).forEach(([role, count]) => {
+        const pct = Math.round((count / users.length) * 100);
+        body.innerHTML += `
+          <tr>
+            <td><span class="badge ${role}">${role}</span></td>
+            <td style="font-weight:700;">${count}</td>
+            <td>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div style="flex:1; height:4px; background:var(--border); border-radius:4px; overflow:hidden;">
+                  <div style="width:${pct}%; height:100%; background:var(--green); border-radius:4px;"></div>
+                </div>
+                <span style="font-size:12px; color:var(--muted); width:35px;">${pct}%</span>
+              </div>
+            </td>
+            <td style="color:var(--muted);">${convs ? Object.values(convByUser).reduce((a, b) => a + b, 0) : '—'}</td>
+          </tr>
+        `;
+      });
+
+      addLog(`Stats chargées : ${users.length} users`, 'ok');
+    } catch (err) {
+      addLog('Erreur stats : ' + err.message, 'err');
+    }
+  }
+
+  // ── UTILISATEURS ─────────────────────────────────────────────────────────────
+  async function loadUsers() {
+    try {
+      const { data, error } = await sb.from('users').select('id, full_name, email, role, sport, is_certified').order('full_name');
+      if (error) throw error;
+      allUsers = data;
+      renderUsers(data);
+
+      // Distribution rôles
+      const roleCount = {};
+      data.forEach(u => { const r = u.role || 'joueur'; roleCount[r] = (roleCount[r] || 0) + 1; });
+      const distBody = document.getElementById('roles-dist-body');
+      if (distBody) {
+        distBody.innerHTML = '';
+        const rolesIA = ['joueur', 'athlète', 'talent', 'supporter', 'club', 'journaliste', 'agent', 'recruteur'];
+        rolesIA.forEach(r => {
+          distBody.innerHTML += `
+            <tr>
+              <td><span class="badge ${r}">${r}</span></td>
+              <td style="font-weight:700;">${roleCount[r] || 0}</td>
+              <td style="color:var(--green);">✓ Actif</td>
+            </tr>
+          `;
+        });
+      }
+
+      addLog(`${data.length} utilisateurs chargés`, 'ok');
+    } catch (err) {
+      addLog('Erreur users : ' + err.message, 'err');
+    }
+  }
+
+  function renderUsers(data) {
+    const body = document.getElementById('users-body');
+    body.innerHTML = '';
+    if (!data.length) { body.innerHTML = '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:30px;">Aucun utilisateur</td></tr>'; return; }
+    data.forEach(u => {
+      body.innerHTML += `
+        <tr>
+          <td style="font-weight:700;">${u.full_name || '—'}</td>
+          <td style="color:var(--muted); font-family:'Space Mono',monospace; font-size:11px;">${u.email || '—'}</td>
+          <td><span class="badge ${u.role || 'joueur'}">${u.role || 'joueur'}</span></td>
+          <td style="color:var(--muted);">${u.sport || '—'}</td>
+          <td>${u.is_certified ? '<span style="color:var(--blue);">✓ Certifié</span>' : '<span style="color:var(--muted);">—</span>'}</td>
+          <td>
+            <div style="display:flex; gap:8px;">
+              <select class="role-select" onchange="quickRoleChange('${u.id}', this.value)">
+                ${['joueur','athlète','talent','supporter','club','journaliste','agent','recruteur'].map(r =>
+                  `<option value="${r}" ${u.role === r ? 'selected' : ''}>${r}</option>`
+                ).join('')}
+              </select>
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+  }
+
+  function filterUsers() {
+    const q = document.getElementById('userSearch').value.toLowerCase();
+    renderUsers(allUsers.filter(u =>
+      (u.full_name || '').toLowerCase().includes(q) ||
+      (u.email || '').toLowerCase().includes(q) ||
+      (u.role || '').toLowerCase().includes(q)
+    ));
+  }
+
+  async function quickRoleChange(userId, newRole) {
+    try {
+      const { error } = await sb.from('users').update({ role: newRole }).eq('id', userId);
+      if (error) throw error;
+      addLog(`Rôle → ${newRole}`, 'ok');
+    } catch (err) {
+      addLog('Erreur rôle : ' + err.message, 'err');
+    }
+  }
+
+  // ── SÉANCES ──────────────────────────────────────────────────────────────────
+  async function createSeance() {
+    const title    = document.getElementById('s-title').value.trim();
+    const order    = parseInt(document.getElementById('s-order').value) || 1;
+    const duration = document.getElementById('s-duration').value.trim();
+    const role     = document.getElementById('s-role').value;
+    const desc     = document.getElementById('s-desc').value.trim();
+    const exercises = [
+      document.getElementById('s-ex1').value.trim(),
+      document.getElementById('s-ex2').value.trim(),
+      document.getElementById('s-ex3').value.trim(),
+      document.getElementById('s-ex4').value.trim(),
+    ].filter(Boolean);
+
+    if (!title) { addLog('Titre requis', 'err'); return; }
+
+    try {
+      const { error } = await sb.from('training_sessions').insert([{
+        title, order_index: order, duration, target_role: role,
+        description: desc, exercises, is_locked: false,
+        created_at: new Date().toISOString(),
+      }]);
+      if (error) throw error;
+      addLog(`Séance "${title}" créée !`, 'ok');
+      ['s-title','s-order','s-duration','s-desc','s-ex1','s-ex2','s-ex3','s-ex4'].forEach(id => document.getElementById(id).value = '');
+      loadSeances();
+    } catch (err) {
+      addLog('Erreur création séance : ' + err.message, 'err');
+    }
+  }
+
+  async function loadSeances() {
+    try {
+      const { data, error } = await sb.from('training_sessions').select('*').order('order_index');
+      if (error) throw error;
+      const container = document.getElementById('seances-list');
+      if (!data.length) { container.innerHTML = '<div style="color:var(--muted);text-align:center;padding:20px;">Aucune séance créée</div>'; return; }
+      container.innerHTML = '';
+      data.forEach(s => {
+        const div = document.createElement('div');
+        div.className = 'seance-item';
+        div.innerHTML = `
+          <div class="seance-order">${s.order_index}</div>
+          <div class="seance-info">
+            <div class="name">${s.title}</div>
+            <div class="meta">${s.duration || '—'} · ${s.target_role || 'tous'} · ${(s.exercises || []).length} exercices</div>
+          </div>
+          <button class="lock-toggle ${s.is_locked ? '' : 'unlocked'}" title="${s.is_locked ? 'Déverrouiller' : 'Verrouiller'}"
+            onclick="toggleLock('${s.id}', ${s.is_locked})"></button>
+          <button class="btn btn-sm btn-danger" onclick="deleteSeance('${s.id}')">Suppr.</button>
+        `;
+        container.appendChild(div);
+      });
+      addLog(`${data.length} séances chargées`, 'ok');
+    } catch (err) {
+      addLog('Erreur séances : ' + err.message, 'err');
+    }
+  }
+
+  async function toggleLock(id, currentLocked) {
+    try {
+      const { error } = await sb.from('training_sessions').update({ is_locked: !currentLocked }).eq('id', id);
+      if (error) throw error;
+      addLog(`Séance ${currentLocked ? 'déverrouillée' : 'verrouillée'}`, 'ok');
+      loadSeances();
+    } catch (err) {
+      addLog('Erreur verrou : ' + err.message, 'err');
+    }
+  }
+
+  async function deleteSeance(id) {
+    if (!confirm('Supprimer cette séance ?')) return;
+    try {
+      const { error } = await sb.from('training_sessions').delete().eq('id', id);
+      if (error) throw error;
+      addLog('Séance supprimée', 'err');
+      loadSeances();
+    } catch (err) {
+      addLog('Erreur suppression : ' + err.message, 'err');
+    }
+  }
+
+  // ── PROGRESSION ──────────────────────────────────────────────────────────────
+  async function updateProgression() {
+    const userId    = document.getElementById('p-user').value.trim();
+    const score     = parseInt(document.getElementById('p-score').value) || 0;
+    const seances   = parseInt(document.getElementById('p-seances').value) || 0;
+    const objectif  = document.getElementById('p-objectif').value.trim();
+
+    if (!userId) { addLog('ID utilisateur requis', 'err'); return; }
+
+    try {
+      const { error } = await sb.from('user_progress').upsert([{
+        user_id: userId,
+        monthly_score: score,
+        sessions_completed: seances,
+        current_objective: objectif,
+        updated_at: new Date().toISOString(),
+      }], { onConflict: 'user_id' });
+      if (error) throw error;
+      addLog(`Progression mise à jour : ${score}%`, 'ok');
+      loadProgressions();
+    } catch (err) {
+      addLog('Erreur progression : ' + err.message, 'err');
+    }
+  }
+
+  async function loadProgressions() {
+    try {
+      const { data, error } = await sb.from('user_progress')
+        .select('*, users:user_id(full_name, role)')
+        .order('monthly_score', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      const container = document.getElementById('prog-list');
+      if (!data || !data.length) { container.innerHTML = '<div style="color:var(--muted);text-align:center;padding:20px;">Aucune progression enregistrée</div>'; return; }
+      container.innerHTML = '';
+      data.forEach(p => {
+        const name = p.users?.full_name || p.user_id?.substring(0, 8) + '...';
+        const div = document.createElement('div');
+        div.className = 'prog-card';
+        div.innerHTML = `
+          <div class="prog-header">
+            <div class="prog-name">${name} <span class="badge ${p.users?.role || 'joueur'}" style="margin-left:8px;">${p.users?.role || '—'}</span></div>
+            <div class="prog-pct">${p.monthly_score || 0}%</div>
+          </div>
+          <div class="prog-bar"><div class="prog-fill" style="width:${p.monthly_score || 0}%"></div></div>
+          <div style="font-size:11px; color:var(--muted); margin-top:8px;">${p.sessions_completed || 0} séances · ${p.current_objective || '—'}</div>
+        `;
+        container.appendChild(div);
+      });
+    } catch (err) {
+      addLog('Erreur progressions : ' + err.message, 'err');
+    }
+  }
+
+  // ── NUTRITION ────────────────────────────────────────────────────────────────
+  async function createNutrition() {
+    const data = {
+      title:     document.getElementById('n-title').value.trim(),
+      target_role: document.getElementById('n-role').value,
+      breakfast: document.getElementById('n-breakfast').value.trim(),
+      lunch:     document.getElementById('n-lunch').value.trim(),
+      dinner:    document.getElementById('n-dinner').value.trim(),
+      hydration: document.getElementById('n-hydra').value.trim(),
+      created_at: new Date().toISOString(),
+    };
+    if (!data.title) { addLog('Titre requis', 'err'); return; }
+    try {
+      const { error } = await sb.from('nutrition_plans').insert([data]);
+      if (error) throw error;
+      addLog(`Plan "${data.title}" publié !`, 'ok');
+      ['n-title','n-breakfast','n-lunch','n-dinner','n-hydra'].forEach(id => document.getElementById(id).value = '');
+      loadNutrition();
+    } catch (err) {
+      addLog('Erreur nutrition : ' + err.message, 'err');
+    }
+  }
+
+  async function loadNutrition() {
+    try {
+      const { data, error } = await sb.from('nutrition_plans').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      const body = document.getElementById('nutrition-body');
+      body.innerHTML = '';
+      if (!data.length) { body.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:30px;">Aucun plan créé</td></tr>'; return; }
+      data.forEach(p => {
+        body.innerHTML += `
+          <tr>
+            <td style="font-weight:700;">${p.title}</td>
+            <td><span class="badge ${p.target_role || 'tous'}">${p.target_role || 'tous'}</span></td>
+            <td style="color:var(--muted); font-size:12px;">${new Date(p.created_at).toLocaleDateString('fr-FR')}</td>
+            <td><button class="btn btn-sm btn-danger" onclick="deleteNutrition('${p.id}')">Suppr.</button></td>
+          </tr>
+        `;
+      });
+    } catch (err) {
+      addLog('Erreur nutrition : ' + err.message, 'err');
+    }
+  }
+
+  async function deleteNutrition(id) {
+    if (!confirm('Supprimer ce plan ?')) return;
+    const { error } = await sb.from('nutrition_plans').delete().eq('id', id);
+    if (!error) { addLog('Plan supprimé', 'err'); loadNutrition(); }
+  }
+
+  // ── RÔLES ────────────────────────────────────────────────────────────────────
+  async function changeRole() {
+    const uid     = document.getElementById('r-uid').value.trim();
+    const newRole = document.getElementById('r-role').value;
+    if (!uid) { addLog('ID requis', 'err'); return; }
+    try {
+      const { error } = await sb.from('users').update({ role: newRole }).eq('id', uid);
+      if (error) throw error;
+      addLog(`Rôle changé → ${newRole}`, 'ok');
+      loadUsers();
+    } catch (err) {
+      addLog('Erreur : ' + err.message, 'err');
+    }
+  }
+
+  // ── LOGS FECAAI ──────────────────────────────────────────────────────────────
+  async function loadAILogs() {
+    try {
+      const { data, error } = await sb.from('ai_conversations')
+        .select('*, users:user_id(full_name, role)')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      const body = document.getElementById('logs-body');
+      body.innerHTML = '';
+      const filter = document.getElementById('log-search').value.toLowerCase();
+      const filtered = filter ? data.filter(d =>
+        (d.content || '').toLowerCase().includes(filter) ||
+        (d.users?.full_name || '').toLowerCase().includes(filter)
+      ) : data;
+      if (!filtered.length) { body.innerHTML = '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:30px;">Aucun log</td></tr>'; return; }
+      filtered.forEach(l => {
+        body.innerHTML += `
+          <tr>
+            <td style="font-weight:700; font-size:12px;">${l.users?.full_name || l.user_id?.substring(0, 8) + '...'}</td>
+            <td><span class="badge ${l.users?.role || 'joueur'}">${l.users?.role || '—'}</span></td>
+            <td style="font-size:12px; color:${l.role === 'user' ? 'var(--orange)' : 'var(--green)'};">
+              [${l.role}] ${(l.content || '').substring(0, 80)}${l.content?.length > 80 ? '...' : ''}
+            </td>
+            <td style="color:var(--muted); font-size:11px; font-family:'Space Mono',monospace;">${new Date(l.created_at).toLocaleString('fr-FR')}</td>
+            <td><button class="btn btn-sm btn-danger" onclick="deleteLog('${l.id}')">✕</button></td>
+          </tr>
+        `;
+      });
+      addLog(`${filtered.length} logs chargés`, 'ok');
+    } catch (err) {
+      addLog('Erreur logs : ' + err.message, 'err');
+    }
+  }
+
+  async function deleteLog(id) {
+    const { error } = await sb.from('ai_conversations').delete().eq('id', id);
+    if (!error) { addLog('Log supprimé', 'err'); loadAILogs(); }
+  }
+
+  async function clearAllLogs() {
+    if (!confirm('Vider TOUS les logs FecaAI ? Cette action est irréversible.')) return;
+    const { data: session } = await sb.auth.getSession();
+    if (!session?.session) { addLog('Connexion admin requise', 'err'); return; }
+    const { error } = await sb.from('ai_conversations').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    if (!error) { addLog('Tous les logs supprimés', 'err'); loadAILogs(); }
+    else addLog('Erreur : ' + error.message, 'err');
+  }
+
+  // ── INIT ─────────────────────────────────────────────────────────────────────
+  window.onload = () => { addLog('Tour de contrôle FecaAI prête.', 'ok'); };
+</script>
+</body>
+</html>

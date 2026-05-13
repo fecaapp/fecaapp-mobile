@@ -1,19 +1,14 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:video_player/video_player.dart';
-import 'dart:io';
-import 'dart:ui';
-import '../models/user.dart' as model;
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
+import '../models/user.dart';
 import '../services/social_service.dart';
-
-// ==========================================
-// FICHIER : CREATE_CONTENT_SCREEN.DART 🦁
-// ==========================================
 
 class CreateContentScreen extends StatefulWidget {
   final String type; // 'POST' ou 'STATUS'
-  final model.User user;
+  final User user;
 
   const CreateContentScreen({
     super.key,
@@ -25,217 +20,331 @@ class CreateContentScreen extends StatefulWidget {
   State<CreateContentScreen> createState() => _CreateContentScreenState();
 }
 
-class _CreateContentScreenState extends State<CreateContentScreen> {
-  final TextEditingController _captionController = TextEditingController();
+class _CreateContentScreenState extends State<CreateContentScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _textController = TextEditingController();
   final SocialService _socialService = SocialService();
+  final SupabaseClient = supabase.Supabase.instance.client;
 
-  File? _mediaFile;
-  VideoPlayerController? _videoController;
-  bool _isUploading = false;
+  List<File> _mediaFiles = [];
   bool _isVideo = false;
   bool _isTextOnly = false;
+  bool _isLoading = false;
+  int _selectedTheme = 0;
 
-  // Gradients stylés pour les statuts texte
-  final List<List<Color>> _statusGradients = [
-    [const Color(0xFF0F2027), const Color(0xFF203A43), const Color(0xFF2C5364)],
-    [const Color(0xFF11998e), const Color(0xFF38ef7d)],
-    [const Color(0xFF8E2DE2), const Color(0xFF4A00E0)],
-    [const Color(0xFFf12711), const Color(0xFFf5af19)],
-    [const Color(0xFF000000), const Color(0xFF434343)],
+  late AnimationController _publishAnim;
+  late Animation<double> _publishScale;
+
+  // Thèmes de fond pour les posts texte
+  final List<Map<String, dynamic>> _themes = [
+    {
+      'gradient': [const Color(0xFF0A0A0A), const Color(0xFF111111)],
+      'name': 'Sombre',
+    },
+    {
+      'gradient': [const Color(0xFF0D1F0D), const Color(0xFF0A1A0A)],
+      'name': 'Forêt',
+    },
+    {
+      'gradient': [const Color(0xFF0D0D1F), const Color(0xFF0A0A1A)],
+      'name': 'Nuit',
+    },
+    {
+      'gradient': [const Color(0xFF1A0D0D), const Color(0xFF150A0A)],
+      'name': 'Braise',
+    },
+    {
+      'gradient': [const Color(0xFF1A1500), const Color(0xFF121000)],
+      'name': 'Or',
+    },
+    {
+      'gradient': [const Color(0xFF0D1A1A), const Color(0xFF0A1515)],
+      'name': 'Mer',
+    },
+    {
+      'gradient': [const Color(0xFF1A0D1A), const Color(0xFF150A15)],
+      'name': 'Violet',
+    },
   ];
-  int _selectedBgIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    // Si c'est un STATUS, on demande si l'utilisateur veut du texte ou du média
-    if (widget.type == 'POST') {
-      Future.delayed(Duration.zero, () => _autoPickMedia());
-    }
+    _publishAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 120),
+    );
+    _publishScale = Tween(
+      begin: 1.0,
+      end: 0.94,
+    ).animate(CurvedAnimation(parent: _publishAnim, curve: Curves.easeOut));
   }
 
   @override
   void dispose() {
-    _captionController.dispose();
     _textController.dispose();
-    _videoController?.dispose();
+    _publishAnim.dispose();
     super.dispose();
   }
 
-  // --- SÉLECTION MÉDIA (IMAGES & VIDÉOS) ---
-  Future<void> _autoPickMedia() async {
+  // ── MEDIA ─────────────────────────────────────────────────
+
+  Future<void> _pickMedia({bool video = false}) async {
     final picker = ImagePicker();
     try {
-      final XFile? pickedFile = await picker.pickMedia(imageQuality: 80);
-
-      if (pickedFile != null) {
-        final file = File(pickedFile.path);
-        final bool isVideoFile =
-            pickedFile.path.toLowerCase().endsWith('.mp4') ||
-            pickedFile.path.toLowerCase().endsWith('.mov') ||
-            pickedFile.path.toLowerCase().endsWith('.avi');
-
-        setState(() {
-          _mediaFile = file;
-          _isVideo = isVideoFile;
-          _isTextOnly = false;
-        });
-
-        if (isVideoFile) {
-          _videoController = VideoPlayerController.file(file);
-          await _videoController!.initialize();
-          setState(() {});
-          _videoController?.setLooping(true);
-          _videoController?.play();
-        }
+      if (video) {
+        final file = await picker.pickVideo(source: ImageSource.gallery);
+        if (file != null)
+          setState(() {
+            _mediaFiles = [File(file.path)];
+            _isVideo = true;
+            _isTextOnly = false;
+          });
       } else {
-        // Si l'utilisateur annule et que c'est un POST, on ferme
-        if (widget.type == 'POST' && mounted) Navigator.pop(context);
-        // Si c'est un STATUS, on passe en mode texte par défaut
-        if (widget.type == 'STATUS') setState(() => _isTextOnly = true);
+        final files = await picker.pickMultiImage(imageQuality: 85);
+        if (files.isNotEmpty)
+          setState(() {
+            _mediaFiles = files.map((f) => File(f.path)).toList();
+            _isVideo = false;
+            _isTextOnly = false;
+          });
       }
     } catch (e) {
-      debugPrint("Erreur Picker: $e");
-      if (mounted) Navigator.pop(context);
+      debugPrint("Erreur pick: $e");
     }
   }
 
-  // --- LOGIQUE DE PUBLICATION ---
-  Future<void> _handlePublish() async {
-    FocusScope.of(context).unfocus();
+  void _removeMedia(int index) {
+    setState(() {
+      _mediaFiles.removeAt(index);
+      if (_mediaFiles.isEmpty) _isVideo = false;
+    });
+  }
 
-    // Validation stricte
-    final String finalContent = _isTextOnly
-        ? _textController.text.trim()
-        : _captionController.text.trim();
+  // ── PUBLICATION ───────────────────────────────────────────
 
-    if (_isTextOnly && finalContent.isEmpty) return;
-    if (!_isTextOnly && _mediaFile == null) return;
+  Future<void> _publish() async {
+    final content = _textController.text.trim();
+    final hasMedia = _mediaFiles.isNotEmpty;
 
-    setState(() => _isUploading = true);
+    // Validation : texte pur OU media requis
+    if (content.isEmpty && !hasMedia) {
+      _showSnack("Écris quelque chose ou ajoute une photo 🦁", isError: true);
+      return;
+    }
+
+    setState(() => _isLoading = true);
     HapticFeedback.heavyImpact();
 
     try {
       bool success = false;
 
-      if (widget.type == 'POST') {
-        success = await _socialService.createPost(
-          userId: widget.user.id,
-          content: finalContent,
-          type: _isVideo ? 'VIDEO' : 'IMAGE',
-          file: _mediaFile,
-        );
-      } else {
-        // Publication d'un Statut (Story)
+      if (widget.type == 'STATUS') {
+        // Publication statut
         success = await _socialService.createStatus(
           userId: widget.user.id,
-          content: finalContent,
-          imageFile: _mediaFile, // Sera null si _isTextOnly
+          content: content,
+          imageFile: hasMedia ? _mediaFiles.first : null,
+        );
+      } else if (_isTextOnly || (!hasMedia)) {
+        // Post TEXTE PUR — pas de fichier
+        success = await _socialService.createPost(
+          userId: widget.user.id,
+          content: content,
+          type: 'TEXT',
+          // Pas de file ni files → texte pur
+        );
+      } else if (_isVideo) {
+        // Post VIDÉO
+        success = await _socialService.createPost(
+          userId: widget.user.id,
+          content: content,
+          type: 'VIDEO',
+          file: _mediaFiles.first,
+        );
+      } else if (_mediaFiles.length == 1) {
+        // Post IMAGE unique
+        success = await _socialService.createPost(
+          userId: widget.user.id,
+          content: content,
+          type: 'IMAGE',
+          file: _mediaFiles.first,
+        );
+      } else {
+        // Post MULTI-PHOTOS
+        success = await _socialService.createPost(
+          userId: widget.user.id,
+          content: content,
+          type: 'IMAGE',
+          files: _mediaFiles,
         );
       }
 
       if (success && mounted) {
-        Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Le Lion a rugi avec succès ! 🦁"),
-            backgroundColor: Colors.greenAccent,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        HapticFeedback.mediumImpact();
+        _showSnack("Rugissement publié ! 🦁🔥");
+        await Future.delayed(const Duration(milliseconds: 600));
+        if (mounted) Navigator.pop(context);
+      } else {
+        _showSnack("Erreur lors de la publication", isError: true);
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isUploading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Échec du rugissement : $e"),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
+      debugPrint("Erreur publication: $e");
+      _showSnack("Erreur: $e", isError: true);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  void _showSnack(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          msg,
+          style: TextStyle(
+            color: isError ? Colors.white : Colors.black,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        backgroundColor: isError ? Colors.redAccent : const Color(0xFF3CFF7E),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  // ── BUILD ────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      resizeToAvoidBottomInset: _isTextOnly,
+      backgroundColor: const Color(0xFF050505),
       body: Stack(
         children: [
-          _buildMainContent(),
-          _buildTopBar(),
-          if (_isUploading) _buildUploadOverlay(),
+          Column(
+            children: [
+              _buildAppBar(),
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    children: [
+                      if (!_isTextOnly && _mediaFiles.isEmpty)
+                        _buildTypeSwitcher(),
+                      _buildContentArea(),
+                      if (_isTextOnly && _mediaFiles.isEmpty)
+                        _buildThemeSelector(),
+                      if (_mediaFiles.isNotEmpty) _buildMediaPreview(),
+                      if (!_isVideo && !_isTextOnly) _buildAddMorePhotos(),
+                      const SizedBox(height: 120),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // Barre du bas
+          Positioned(bottom: 0, left: 0, right: 0, child: _buildBottomBar()),
+
+          // Loading overlay
+          if (_isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.75),
+              child: const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(
+                      color: Color(0xFF3CFF7E),
+                      strokeWidth: 2,
+                    ),
+                    SizedBox(height: 20),
+                    Text(
+                      "PUBLICATION...",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildMainContent() {
-    if (_isTextOnly) return _buildTextEditor();
+  // ── APP BAR ───────────────────────────────────────────────
 
-    // Si on attend le média pour un POST
-    if (_mediaFile == null && widget.type == 'POST') {
-      return const Center(
-        child: CircularProgressIndicator(color: Colors.greenAccent),
-      );
-    }
-
-    // Si c'est un statut et qu'on n'a pas encore choisi
-    if (_mediaFile == null && widget.type == 'STATUS' && !_isTextOnly) {
-      return _buildStatusPickerMode();
-    }
-
-    return _buildStudioEditor();
-  }
-
-  // --- CHOIX INITIAL POUR STATUS ---
-  Widget _buildStatusPickerMode() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _modeButton(
-            icon: Icons.text_fields_rounded,
-            label: "TEXTE",
-            onTap: () => setState(() => _isTextOnly = true),
-          ),
-          const SizedBox(height: 30),
-          _modeButton(
-            icon: Icons.photo_camera_rounded,
-            label: "MÉDIA",
-            onTap: _autoPickMedia,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _modeButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
+  Widget _buildAppBar() {
+    return SafeArea(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white10),
+          color: Colors.black,
+          border: Border(
+            bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+          ),
         ),
-        child: Column(
+        child: Row(
           children: [
-            Icon(icon, color: Colors.greenAccent, size: 40),
-            const SizedBox(height: 10),
-            Text(
-              label,
-              style: const TextStyle(
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: const Icon(
+                Icons.close_rounded,
                 color: Colors.white,
-                fontWeight: FontWeight.bold,
+                size: 26,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                widget.type == 'STATUS'
+                    ? "STATUT FLASH"
+                    : "NOUVEAU RUGISSEMENT",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ),
+            // Bouton publier dans l'appbar aussi
+            GestureDetector(
+              onTap: _isLoading ? null : _publish,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 9,
+                ),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF3CFF7E), Color(0xFF00C853)],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF3CFF7E).withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Text(
+                  "PUBLIER",
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                    letterSpacing: 1,
+                  ),
+                ),
               ),
             ),
           ],
@@ -244,194 +353,518 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
     );
   }
 
-  // --- ÉDITEUR STUDIO (PREVIEW PHOTO/VIDEO) ---
-  Widget _buildStudioEditor() {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Column(
+  // ── TYPE SWITCHER ─────────────────────────────────────────
+
+  Widget _buildTypeSwitcher() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Row(
         children: [
-          const SizedBox(height: 110),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            width: double.infinity,
-            height: MediaQuery.of(context).size.height * 0.55,
-            decoration: BoxDecoration(
-              color: const Color(0xFF0D0D0D),
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: Colors.white10, width: 1),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: _isVideo
-                ? (_videoController != null &&
-                          _videoController!.value.isInitialized
-                      ? SizedBox.expand(
-                          child: FittedBox(
-                            fit: BoxFit.cover,
-                            child: SizedBox(
-                              width: _videoController!.value.size.width,
-                              height: _videoController!.value.size.height,
-                              child: VideoPlayer(_videoController!),
-                            ),
-                          ),
-                        )
-                      : const Center(
-                          child: CircularProgressIndicator(
-                            color: Colors.greenAccent,
-                          ),
-                        ))
-                : Image.file(_mediaFile!, fit: BoxFit.cover),
+          _typeChip(
+            Icons.text_fields_rounded,
+            "Texte",
+            !_isVideo && _mediaFiles.isEmpty,
+            () => setState(() {
+              _isTextOnly = true;
+              _isVideo = false;
+              _mediaFiles = [];
+            }),
           ),
-          Padding(
-            padding: const EdgeInsets.all(25),
-            child: TextField(
-              controller: _captionController,
-              maxLines: 4,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-              decoration: InputDecoration(
-                hintText: "Écrivez votre légende...",
-                hintStyle: TextStyle(color: Colors.white.withOpacity(0.2)),
-                filled: true,
-                fillColor: const Color(0xFF121212),
-                contentPadding: const EdgeInsets.all(20),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
+          const SizedBox(width: 10),
+          _typeChip(
+            Icons.image_rounded,
+            "Photo",
+            !_isVideo && _mediaFiles.isNotEmpty,
+            () => _pickMedia(),
           ),
-          SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 100),
+          const SizedBox(width: 10),
+          _typeChip(
+            Icons.videocam_rounded,
+            "Vidéo",
+            _isVideo,
+            () => _pickMedia(video: true),
+          ),
         ],
       ),
     );
   }
 
-  // --- ÉDITEUR TEXTE ---
-  Widget _buildTextEditor() {
+  Widget _typeChip(
+    IconData icon,
+    String label,
+    bool active,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
-      onTap: () {
-        setState(
-          () => _selectedBgIndex =
-              (_selectedBgIndex + 1) % _statusGradients.length,
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 30),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: _statusGradients[_selectedBgIndex],
+          color: active
+              ? const Color(0xFF3CFF7E).withOpacity(0.12)
+              : Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: active
+                ? const Color(0xFF3CFF7E).withOpacity(0.4)
+                : Colors.white.withOpacity(0.08),
           ),
         ),
-        child: Center(
-          child: TextField(
-            controller: _textController,
-            textAlign: TextAlign.center,
-            autofocus: true,
-            maxLines: null,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.w900,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: active ? const Color(0xFF3CFF7E) : Colors.white38,
             ),
-            decoration: InputDecoration(
-              hintText: "Tapez votre pensée...",
-              hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
-              border: InputBorder.none,
+            const SizedBox(width: 7),
+            Text(
+              label,
+              style: TextStyle(
+                color: active ? const Color(0xFF3CFF7E) : Colors.white38,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
-  // --- BARRE SUPÉRIEURE ---
-  Widget _buildTopBar() {
-    return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
-      child: ClipRRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-          child: Container(
-            padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + 10,
-              bottom: 15,
-              left: 10,
-              right: 15,
-            ),
-            color: Colors.black.withOpacity(0.4),
+  // ── ZONE DE TEXTE ─────────────────────────────────────────
+
+  Widget _buildContentArea() {
+    final colors = _themes[_selectedTheme]['gradient'] as List<Color>;
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      constraints: const BoxConstraints(minHeight: 160),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: colors,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
+      ),
+      child: Column(
+        children: [
+          // Header profil
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Row(
               children: [
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(
-                    Icons.close_rounded,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  widget.type == 'POST' ? "CRÉER UN POST" : "STATUT FLASH",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 13,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-                const Spacer(),
-                ElevatedButton(
-                  onPressed: _isUploading ? null : _handlePublish,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.greenAccent,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: SweepGradient(
+                      colors: [
+                        Colors.green,
+                        Colors.red,
+                        Colors.yellow,
+                        Colors.green,
+                      ],
                     ),
                   ),
-                  child: const Text(
-                    "PUBLIER",
-                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
+                  padding: const EdgeInsets.all(2),
+                  child: CircleAvatar(
+                    backgroundColor: const Color(0xFF1A1A1A),
+                    backgroundImage: (widget.user.img_url?.isNotEmpty ?? false)
+                        ? NetworkImage(widget.user.img_url!)
+                        : null,
+                    child: (widget.user.img_url?.isEmpty ?? true)
+                        ? Text(
+                            widget.user.fullName.isNotEmpty
+                                ? widget.user.fullName[0].toUpperCase()
+                                : 'L',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14,
+                            ),
+                          )
+                        : null,
                   ),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.user.fullName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                    Text(
+                      widget.type == 'STATUS' ? "Statut · 24h" : "Publication",
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.35),
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
+
+          // Champ texte
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: TextField(
+              controller: _textController,
+              maxLines: null,
+              minLines: 4,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                height: 1.6,
+              ),
+              decoration: InputDecoration(
+                hintText: widget.type == 'STATUS'
+                    ? "Partage un moment de ta vie..."
+                    : "Que rugis-tu aujourd'hui, Lion ? 🦁",
+                hintStyle: TextStyle(
+                  color: Colors.white.withOpacity(0.2),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                ),
+                border: InputBorder.none,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── THÈMES ────────────────────────────────────────────────
+
+  Widget _buildThemeSelector() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 3,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3CFF7E),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                "THÈME DE FOND",
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.4),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 52,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _themes.length,
+              itemBuilder: (_, i) {
+                final colors = _themes[i]['gradient'] as List<Color>;
+                final isSelected = i == _selectedTheme;
+                return GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _selectedTheme = i);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 52,
+                    height: 52,
+                    margin: const EdgeInsets.only(right: 10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: colors),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFF3CFF7E)
+                            : Colors.white.withOpacity(0.1),
+                        width: isSelected ? 2 : 1,
+                      ),
+                    ),
+                    child: isSelected
+                        ? const Center(
+                            child: Icon(
+                              Icons.check_rounded,
+                              color: Color(0xFF3CFF7E),
+                              size: 20,
+                            ),
+                          )
+                        : null,
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── APERÇU MÉDIAS ─────────────────────────────────────────
+
+  Widget _buildMediaPreview() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 3,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3CFF7E),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _isVideo ? "VIDÉO" : "${_mediaFiles.length} PHOTO(S)",
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.4),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 110,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _mediaFiles.length,
+              itemBuilder: (_, i) => Container(
+                width: 100,
+                height: 100,
+                margin: const EdgeInsets.only(right: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.file(_mediaFiles[i], fit: BoxFit.cover),
+                    if (_isVideo)
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.4),
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.videocam_rounded,
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                        ),
+                      ),
+                    Positioned(
+                      top: 5,
+                      right: 5,
+                      child: GestureDetector(
+                        onTap: () => _removeMedia(i),
+                        child: Container(
+                          width: 22,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.7),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close_rounded,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddMorePhotos() {
+    if (_mediaFiles.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: GestureDetector(
+        onTap: _pickMedia,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.04),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFF3CFF7E).withOpacity(0.2),
+              style: BorderStyle.solid,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.add_photo_alternate_rounded,
+                color: Color(0xFF3CFF7E),
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                "Ajouter des photos",
+                style: TextStyle(
+                  color: Color(0xFF3CFF7E),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildUploadOverlay() {
+  // ── BARRE DU BAS ─────────────────────────────────────────
+
+  Widget _buildBottomBar() {
     return Container(
-      color: Colors.black87,
-      child: const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(
-              color: Colors.greenAccent,
-              strokeWidth: 5,
-            ),
-            SizedBox(height: 25),
-            Text(
-              "TRAITEMENT DU RUGISSEMENT...",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 2,
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).padding.bottom + 12,
+        left: 16,
+        right: 16,
+        top: 12,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D0D0D),
+        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.06))),
+      ),
+      child: Row(
+        children: [
+          // Boutons media
+          _bottomIconBtn(
+            Icons.image_rounded,
+            const Color(0xFF3CFF7E),
+            () => _pickMedia(),
+          ),
+          const SizedBox(width: 8),
+          _bottomIconBtn(
+            Icons.videocam_rounded,
+            Colors.blueAccent,
+            () => _pickMedia(video: true),
+          ),
+          const SizedBox(width: 8),
+          _bottomIconBtn(
+            Icons.text_fields_rounded,
+            Colors.purpleAccent,
+            () => setState(() {
+              _isTextOnly = true;
+              _mediaFiles = [];
+            }),
+          ),
+          const Spacer(),
+
+          // Bouton publier principal
+          ScaleTransition(
+            scale: _publishScale,
+            child: GestureDetector(
+              onTapDown: (_) => _publishAnim.forward(),
+              onTapUp: (_) {
+                _publishAnim.reverse();
+                _publish();
+              },
+              onTapCancel: () => _publishAnim.reverse(),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF3CFF7E), Color(0xFF00C853)],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF3CFF7E).withOpacity(0.4),
+                      blurRadius: 16,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.rocket_launch_rounded,
+                      color: Colors.black,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      "PUBLIER",
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bottomIconBtn(IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          shape: BoxShape.circle,
+          border: Border.all(color: color.withOpacity(0.2)),
         ),
+        child: Icon(icon, color: color, size: 20),
       ),
     );
   }

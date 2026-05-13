@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FECAAPP - BOXE ELITE COMMAND v5.2 PRO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../config.js"></script>
+    <script src="script.js" defer></script>
+    <style>
+        :root {
+            --primary: #FFB800;
+            --primary-glow: rgba(255,184,0,0.12);
+            --red: #FF2D2D;
+            --blue: #00D1FF;
+            --bg: #050505;
+            --bg2: #0D0D0D;
+            --bg3: #111111;
+            --border: rgba(255,255,255,0.07);
+            --text: #FFFFFF;
+            --text-dim: rgba(255,255,255,0.4);
+            --green: #00FF85;
+            --gold: #FFD700;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif; min-height:100vh; }
+
+        .admin-lock { background:#000; border-bottom:2px solid var(--primary); padding:10px 20px; display:flex; justify-content:center; align-items:center; gap:15px; font-family:'Orbitron',sans-serif; font-size:11px; flex-wrap:wrap; }
+        .admin-lock input { background:#111; border:1px solid #333; color:var(--primary); padding:5px 10px; border-radius:4px; outline:none; }
+        .admin-lock button { background:var(--primary); color:#000; border:none; padding:5px 15px; border-radius:4px; font-weight:bold; cursor:pointer; text-transform:uppercase; font-family:'Orbitron',sans-serif; }
+
+        .header { background:linear-gradient(135deg,#0a0a0a,#111); border-bottom:1px solid var(--border); padding:15px 30px; display:flex; justify-content:space-between; align-items:center; }
+        .logo-area { display:flex; align-items:center; gap:15px; }
+        .sport-badge { background:var(--primary); color:#000; padding:4px 10px; border-radius:4px; font-family:'Orbitron',sans-serif; font-size:10px; font-weight:900; }
+        .header h1 { font-family:'Orbitron',sans-serif; font-size:14px; font-weight:900; color:var(--primary); letter-spacing:2px; }
+        #status-io { font-family:'Orbitron',sans-serif; font-size:10px; color:var(--text-dim); }
+
+        .main-layout { display:flex; min-height:calc(100vh - 100px); }
+
+        .side-panel { width:300px; min-width:300px; background:var(--bg2); border-right:1px solid var(--border); padding:20px; display:flex; flex-direction:column; gap:15px; overflow-y:auto; }
+        .panel-card { background:var(--bg3); border-radius:10px; padding:15px; border:1px solid var(--border); }
+        .panel-card h3 { font-family:'Orbitron',sans-serif; font-size:10px; font-weight:700; margin-bottom:12px; letter-spacing:1px; display:flex; align-items:center; gap:8px; }
+        .panel-card label { display:block; font-size:10px; color:var(--text-dim); margin-bottom:4px; margin-top:8px; text-transform:uppercase; letter-spacing:1px; }
+        .panel-card input, .panel-card select { width:100%; background:#1a1a1a; border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:6px; font-family:'Rajdhani',sans-serif; font-size:12px; outline:none; }
+
+        .btn { width:100%; padding:9px; border-radius:6px; border:none; cursor:pointer; font-family:'Orbitron',sans-serif; font-size:10px; font-weight:700; letter-spacing:1px; margin-top:12px; text-transform:uppercase; transition:opacity 0.15s; }
+        .btn:hover { opacity:0.85; }
+        .btn-gold  { background:var(--primary); color:#000; }
+        .btn-red   { background:var(--red); color:#fff; }
+        .btn-green { background:var(--green); color:#000; }
+
+        .gold-border  { border-color:var(--primary) !important; }
+        .red-border   { border-color:var(--red) !important; }
+        .green-border { border-color:var(--green) !important; }
+
+        .regie-area { flex:1; padding:25px; overflow-y:auto; background:var(--bg); }
+        .regie-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; gap:15px; color:var(--text-dim); }
+        .regie-empty .icon-big { font-size:60px; opacity:0.3; }
+        .regie-empty p { font-family:'Orbitron',sans-serif; font-size:11px; letter-spacing:2px; }
+
+        .ring-header { background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:20px; margin-bottom:20px; }
+        .ring-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+        .comp-title { font-family:'Orbitron',sans-serif; font-size:13px; color:var(--primary); font-weight:900; }
+
+        .boxers-row { display:grid; grid-template-columns:1fr 140px 1fr; align-items:center; gap:10px; }
+        .boxer-card { text-align:center; }
+        .boxer-photo { width:80px; height:80px; border-radius:50%; margin:0 auto 10px; background:var(--bg3); border:3px solid var(--red); display:flex; align-items:center; justify-content:center; font-size:30px; overflow:hidden; }
+        .boxer-photo img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+        .boxer-photo.blue-corner { border-color:var(--blue); }
+        .boxer-name { font-size:14px; font-weight:900; }
+        .boxer-record { font-size:9px; color:var(--text-dim); margin-top:2px; }
+        .boxer-weight { font-size:9px; color:var(--primary); font-family:'Orbitron',sans-serif; font-weight:700; margin-top:3px; }
+        .corner-label { font-size:9px; font-family:'Orbitron',sans-serif; font-weight:900; margin-bottom:5px; }
+
+        .score-center { text-align:center; }
+        .round-display { font-family:'Orbitron',sans-serif; font-size:11px; color:var(--primary); margin-bottom:6px; }
+        .score-display { display:flex; align-items:center; justify-content:center; gap:8px; }
+        .score-val { font-family:'Orbitron',sans-serif; font-size:44px; font-weight:900; }
+        .score-red  { color:var(--red); }
+        .score-blue { color:var(--blue); }
+        .score-sep  { color:var(--text-dim); font-size:28px; }
+        .timer-box { margin-top:8px; display:inline-flex; align-items:center; gap:6px; padding:6px 14px; background:var(--bg3); border-radius:6px; border:1px solid var(--border); }
+        .timer-val { font-family:'Orbitron',sans-serif; font-size:18px; font-weight:900; color:var(--primary); }
+
+        .rounds-table { width:100%; border-collapse:collapse; margin-top:16px; }
+        .rounds-table th { font-size:9px; color:var(--text-dim); padding:6px 8px; text-align:center; border-bottom:1px solid var(--border); font-family:'Orbitron',sans-serif; }
+        .rounds-table td { padding:8px; font-size:11px; text-align:center; border-bottom:1px solid rgba(255,255,255,0.03); }
+        .rounds-table tr:hover td { background:rgba(255,184,0,0.04); }
+        .score-cell-red  { color:var(--red); font-weight:900; font-family:'Orbitron',sans-serif; }
+        .score-cell-blue { color:var(--blue); font-weight:900; font-family:'Orbitron',sans-serif; }
+        .score-cell-gold { color:var(--primary); font-weight:900; font-family:'Orbitron',sans-serif; }
+
+        .action-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px; }
+        .action-btn { padding:10px; border-radius:7px; border:none; cursor:pointer; font-family:'Orbitron',sans-serif; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1px; transition:all 0.15s; }
+        .btn-red-out  { background:rgba(255,45,45,0.1); color:var(--red); border:1px solid var(--red); }
+        .btn-red-out:hover  { background:var(--red); color:#fff; }
+        .btn-blue-out { background:rgba(0,209,255,0.1); color:var(--blue); border:1px solid var(--blue); }
+        .btn-blue-out:hover { background:var(--blue); color:#000; }
+        .btn-gold-out { background:rgba(255,184,0,0.1); color:var(--primary); border:1px solid var(--primary); }
+        .btn-gold-out:hover { background:var(--primary); color:#000; }
+
+        .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:16px; }
+        .stat-box { background:var(--bg2); border-radius:8px; padding:12px; text-align:center; border:1px solid var(--border); }
+        .stat-val { font-family:'Orbitron',sans-serif; font-size:18px; font-weight:900; color:var(--primary); }
+        .stat-lbl { font-size:8px; color:var(--text-dim); margin-top:3px; text-transform:uppercase; }
+
+        .event-item { display:flex; align-items:center; gap:10px; padding:7px 10px; background:var(--bg2); border-radius:6px; margin-bottom:5px; }
+        .event-red-border  { border-left:2px solid var(--red); }
+        .event-blue-border { border-left:2px solid var(--blue); }
+        .event-gold-border { border-left:2px solid var(--primary); }
+
+        .live-badge { background:var(--red); color:#fff; padding:3px 8px; border-radius:4px; font-family:'Orbitron',sans-serif; font-size:9px; font-weight:700; animation:blink 1s infinite; }
+        @keyframes blink { 0%,100%{opacity:1;}50%{opacity:0.4;} }
+
+        .section-title { font-family:'Orbitron',sans-serif; font-size:10px; color:var(--primary); letter-spacing:2px; margin-bottom:10px; }
+
+        .tabs { display:flex; gap:8px; margin-bottom:16px; }
+        .tab-btn { padding:7px 16px; border-radius:6px; background:var(--bg2); border:1px solid var(--border); color:var(--text-dim); font-family:'Orbitron',sans-serif; font-size:9px; cursor:pointer; font-weight:700; }
+        .tab-btn.active { background:var(--primary-glow); border-color:var(--primary); color:var(--primary); }
+
+        .notif { position:fixed; bottom:20px; right:20px; background:var(--bg2); border:1px solid var(--primary); color:var(--text); padding:12px 20px; border-radius:8px; font-family:'Orbitron',sans-serif; font-size:11px; display:none; z-index:1000; }
+        ::-webkit-scrollbar { width:4px; }
+        ::-webkit-scrollbar-track { background:var(--bg2); }
+        ::-webkit-scrollbar-thumb { background:var(--primary); border-radius:2px; }
+    </style>
+</head>
+<body>
+
+<div class="admin-lock">
+    <span style="color:var(--primary);">[ SÉCURITÉ ADMIN ]</span>
+    <input type="email" id="admin-email" placeholder="Email Command">
+    <input type="password" id="admin-password" placeholder="Clé d'accès">
+    <button onclick="loginAdmin()">DÉVERROUILLER LE SYSTÈME</button>
+    <span id="auth-msg" style="color:#666;">SYSTÈME VERROUILLÉ</span>
+</div>
+
+<div class="header">
+    <div class="logo-area">
+        <div class="sport-badge">🥊 BOX</div>
+        <h1>FECAAPP — BOXE ELITE COMMAND v5.2</h1>
+    </div>
+    <div id="status-io">📡 SIGNAL LIVE DÉCONNECTÉ</div>
+</div>
+
+<div class="main-layout">
+    <div class="side-panel">
+
+        <div class="panel-card gold-border">
+            <h3><span>📡</span><span style="color:var(--primary);">PILOTAGE DIRECT</span></h3>
+            <label>Combat à piloter</label>
+            <select id="matchSelector"><option value="">Chargement...</option></select>
+            <button class="btn btn-gold" onclick="lancerRegie()">LANCER LA RÉGIE</button>
+        </div>
+
+        <div class="panel-card red-border">
+            <h3><span>🥊</span><span style="color:var(--red);">CONTRÔLE DU ROUND</span></h3>
+            <label>Round en cours</label>
+            <select id="currentRoundSel" onchange="setRound(this.value)">
+                <option value="1">ROUND 1</option><option value="2">ROUND 2</option>
+                <option value="3">ROUND 3</option><option value="4">ROUND 4</option>
+                <option value="5">ROUND 5</option><option value="6">ROUND 6</option>
+                <option value="7">ROUND 7</option><option value="8">ROUND 8</option>
+                <option value="9">ROUND 9</option><option value="10">ROUND 10</option>
+                <option value="11">ROUND 11</option><option value="12">ROUND 12</option>
+            </select>
+            <label>Score ce round — ROUGE</label>
+            <input type="number" id="scoreRed" placeholder="Score Rouge" min="1" max="10">
+            <label>Score ce round — BLEU</label>
+            <input type="number" id="scoreBlue" placeholder="Score Bleu" min="1" max="10">
+            <button class="btn btn-red" onclick="saveRoundScore()">VALIDER ROUND</button>
+            <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                <button class="action-btn btn-gold-out" onclick="startTimer()">▶ ROUND</button>
+                <button class="action-btn btn-red-out"  onclick="stopTimer()">⏸ STOP</button>
+            </div>
+        </div>
+
+        <div class="panel-card" style="border-color:rgba(255,184,0,0.3)">
+            <h3><span>⚡</span><span style="color:var(--primary);">ÉVÉNEMENTS</span></h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">
+                <button class="action-btn btn-red-out"  onclick="addEvent('red','knockdown')">ROUGE DOWN 🔻</button>
+                <button class="action-btn btn-blue-out" onclick="addEvent('blue','knockdown')">BLEU DOWN 🔻</button>
+                <button class="action-btn btn-red-out"  onclick="addEvent('red','ko')">ROUGE KO 💥</button>
+                <button class="action-btn btn-blue-out" onclick="addEvent('blue','ko')">BLEU KO 💥</button>
+                <button class="action-btn btn-red-out"  onclick="addEvent('red','tko')">ROUGE TKO</button>
+                <button class="action-btn btn-blue-out" onclick="addEvent('blue','tko')">BLEU TKO</button>
+                <button class="action-btn btn-red-out"  onclick="addEvent('red','point_deduct')">POINT DÉD. R.</button>
+                <button class="action-btn btn-blue-out" onclick="addEvent('blue','point_deduct')">POINT DÉD. B.</button>
+                <button class="action-btn btn-gold-out" onclick="addEvent('none','disqualification_red')" style="font-size:8px;">DQ ROUGE</button>
+                <button class="action-btn btn-gold-out" onclick="addEvent('none','disqualification_blue')" style="font-size:8px;">DQ BLEU</button>
+            </div>
+        </div>
+
+        <div class="panel-card green-border">
+            <h3><span>📅</span><span style="color:var(--green);">PROGRAMMER UN COMBAT</span></h3>
+            <label>Titre / Compétition (Nom de la ligue)</label>
+            <input type="text" id="setupTitle" placeholder="Ex: CHAMPIONNAT NATIONAL">
+            <label>Enjeu du combat</label>
+            <input type="text" id="setupTitle2" placeholder="Ex: TITRE NATIONAL -69 kg">
+            <label>Salle / Arena</label>
+            <input type="text" id="setupArena" placeholder="Ex: Palais des Sports">
+            <label>Catégorie de poids</label>
+            <select id="setupWeight">
+                <option value="-49 KG">MINIMUMS (-49 kg)</option>
+                <option value="-52 KG">MI-MOUCHES (-52 kg)</option>
+                <option value="-56 KG">MOUCHES (-56 kg)</option>
+                <option value="-60 KG">COQS (-60 kg)</option>
+                <option value="-64 KG">PLUMES (-64 kg)</option>
+                <option value="-69 KG">LÉGÈRE (-69 kg)</option>
+                <option value="-75 KG">SUPER LÉGÈRE (-75 kg)</option>
+                <option value="-81 KG">WELTER (-81 kg)</option>
+                <option value="-86 KG">SUPER WELTER (-86 kg)</option>
+                <option value="-91 KG">MOYENS (-91 kg)</option>
+                <option value="+91 KG">LOURDS (+91 kg)</option>
+            </select>
+            <label>Nombre de rounds</label>
+            <select id="setupRounds">
+                <option value="3">3 ROUNDS (Amateur)</option>
+                <option value="4">4 ROUNDS</option>
+                <option value="6">6 ROUNDS</option>
+                <option value="8">8 ROUNDS</option>
+                <option value="10">10 ROUNDS</option>
+                <option value="12">12 ROUNDS (Titre Mondial)</option>
+            </select>
+            <label>Durée du round</label>
+            <select id="setupRoundDuration">
+                <option value="3">3 MINUTES (Pro)</option>
+                <option value="2">2 MINUTES (Amateur fém.)</option>
+            </select>
+            <div style="margin-top:10px;padding:10px;background:#1a1a1a;border-radius:6px;border-left:3px solid var(--red);">
+                <div style="font-size:9px;color:var(--red);font-family:'Orbitron',sans-serif;margin-bottom:6px;">🔴 COIN ROUGE</div>
+                <input type="text" id="setupRed" placeholder="Nom Boxeur Rouge" style="margin-bottom:5px;">
+                <input type="text" id="setupRedCountry" placeholder="Pays">
+                <input type="text" id="setupRedRecord" placeholder="Palmarès (ex: 18V-2D-1N)">
+                <input type="text" id="setupRedPhoto" placeholder="URL Photo boxeur">
+            </div>
+            <div style="margin-top:8px;padding:10px;background:#1a1a1a;border-radius:6px;border-left:3px solid var(--blue);">
+                <div style="font-size:9px;color:var(--blue);font-family:'Orbitron',sans-serif;margin-bottom:6px;">🔵 COIN BLEU</div>
+                <input type="text" id="setupBlue" placeholder="Nom Boxeur Bleu" style="margin-bottom:5px;">
+                <input type="text" id="setupBlueCountry" placeholder="Pays">
+                <input type="text" id="setupBlueRecord" placeholder="Palmarès (ex: 15V-1D-0N)">
+                <input type="text" id="setupBluePhoto" placeholder="URL Photo boxeur">
+            </div>
+            <label>Date &amp; Heure</label>
+            <input type="datetime-local" id="setupTime">
+            <button class="btn btn-green" onclick="createMatch()">ENREGISTRER EN BASE</button>
+        </div>
+
+        <div class="panel-card" style="border-color:var(--primary);">
+            <h3><span>🏆</span><span style="color:var(--primary);">ADMIN CLASSEMENT</span></h3>
+            <label>Ligue cible</label>
+            <select id="standingsLeagueSelector"><option value="">Chargement...</option></select>
+            <label>Nom du Boxeur</label>
+            <input type="text" id="standingsBoxerName" placeholder="Nom complet">
+            <label>Genre</label>
+            <select id="standingsGender">
+                <option value="Masculin">Masculin</option>
+                <option value="Féminin">Féminin</option>
+            </select>
+            <label>Classe de poids</label>
+            <select id="standingsWeight">
+                <option value="-49 KG">-49 KG</option><option value="-52 KG">-52 KG</option>
+                <option value="-56 KG">-56 KG</option><option value="-60 KG">-60 KG</option>
+                <option value="-64 KG">-64 KG</option><option value="-69 KG">-69 KG</option>
+                <option value="-75 KG">-75 KG</option><option value="-81 KG">-81 KG</option>
+                <option value="-86 KG">-86 KG</option><option value="-91 KG">-91 KG</option>
+                <option value="+91 KG">+91 KG</option>
+            </select>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+                <input type="number" id="standingsWon" placeholder="V">
+                <input type="number" id="standingsLost" placeholder="D">
+                <input type="number" id="standingsDrawn" placeholder="N">
+                <input type="number" id="standingsKO" placeholder="KO">
+            </div>
+            <label>Points</label>
+            <input type="number" id="standingsPoints" value="0">
+            <label>Nationalité</label>
+            <input type="text" id="standingsNationality" placeholder="Ex: Cameroun">
+            <label>URL Photo</label>
+            <input type="text" id="standingsPhoto" placeholder="https://...">
+            <label style="display:flex;align-items:center;gap:10px;">
+                <input type="checkbox" id="standingsTitleHolder" style="width:auto;"> Champion en titre (🏆)
+            </label>
+            <button class="btn btn-gold" onclick="saveBoxerToStandings()">ENREGISTRER BOXEUR</button>
+        </div>
+
+    </div>
+
+    <div class="regie-area" id="regieContainer">
+        <div class="regie-empty">
+            <div class="icon-big">🥊</div>
+            <p>SÉLECTIONNEZ UN COMBAT</p>
+            <p style="font-size:9px;opacity:0.5;margin-top:5px;">ET LANCEZ LA RÉGIE POUR PILOTER EN DIRECT</p>
+        </div>
+    </div>
+</div>
+
+<div class="notif" id="notif"></div>
+</body>
+</html>

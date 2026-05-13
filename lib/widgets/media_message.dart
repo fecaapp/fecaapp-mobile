@@ -1,112 +1,159 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class MediaMessage extends StatelessWidget {
-  final Map<String, dynamic> data; // Objet complet venant de la DB
+  final Map<String, dynamic> data;
   final bool isMe;
 
   const MediaMessage({super.key, required this.data, required this.isMe});
 
   @override
   Widget build(BuildContext context) {
-    // Extraction des données Prisma
-    final String? mediaUrl = data['mediaUrl'];
-    final bool isVideo = data['type'] == 'VIDEO';
-    final String duration = data['duration'] ?? "0:00";
-    final String timestamp = data['createdAt'] != null
-        ? TimeOfDay.fromDateTime(
-            DateTime.parse(data['createdAt']),
-          ).format(context)
-        : "00:00";
-    final String status = data['status'] ?? 'SENT';
+    final String? mediaUrl = data['media_url'];
+    final bool isVideo = (data['type'] ?? '') == 'VIDEO';
+    final String duration = data['duration'] ?? '';
+    final DateTime createdAt = data['created_at'] != null
+        ? DateTime.parse(data['created_at']).toLocal()
+        : DateTime.now();
+    final String time = DateFormat('HH:mm').format(createdAt);
+    final bool isRead = data['is_read'] ?? false;
+    final String? reaction = data['my_reaction'];
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 15, left: 15, right: 15),
-        constraints: const BoxConstraints(maxWidth: 250),
-        child: Column(
-          crossAxisAlignment: isMe
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
+        margin: EdgeInsets.only(
+          bottom: reaction != null ? 22 : 10,
+          left: isMe ? 50 : 14,
+          right: isMe ? 14 : 50,
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            // Conteneur Média
-            Container(
-              height: 200,
-              width: 220,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(24),
-                  topRight: const Radius.circular(24),
-                  bottomLeft: Radius.circular(isMe ? 24 : 6),
-                  bottomRight: Radius.circular(isMe ? 6 : 24),
-                ),
-                border: Border.all(
-                  color: isMe
-                      ? Colors.greenAccent.withOpacity(0.3)
-                      : Colors.white10,
-                  width: 1.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.4),
-                    blurRadius: 15,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Image ou Thumbnail Video
-                  _buildMediaPreview(mediaUrl),
+            Column(
+              crossAxisAlignment: isMe
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+              children: [
+                // Conteneur média
+                GestureDetector(
+                  onTap: () => _showFullScreen(context, mediaUrl, isVideo),
+                  child: Container(
+                    width: 230,
+                    height: 210,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(20),
+                        topRight: const Radius.circular(20),
+                        bottomLeft: Radius.circular(isMe ? 20 : 4),
+                        bottomRight: Radius.circular(isMe ? 4 : 20),
+                      ),
+                      border: Border.all(
+                        color: isMe
+                            ? const Color(0xFF3CFF7E).withOpacity(0.3)
+                            : Colors.white.withOpacity(0.08),
+                        width: 0.8,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.4),
+                          blurRadius: 18,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // Image / thumbnail
+                        _buildMediaPreview(mediaUrl),
 
-                  // Overlay dégradé pour la lisibilité
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(0.5),
-                          ],
+                        // Gradient overlay
+                        Positioned.fill(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withOpacity(0.55),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Bouton central play / zoom
+                        Center(
+                          child: _buildCenterAction(context, mediaUrl, isVideo),
+                        ),
+
+                        // Badge vidéo + durée
+                        if (isVideo && duration.isNotEmpty)
+                          _buildVideoBadge(duration),
+
+                        // Badge type
+                        Positioned(
+                          top: 10,
+                          left: 10,
+                          child: _buildTypeBadge(isVideo),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Footer
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, right: 4, left: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        time,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.3),
+                          fontSize: 9,
                         ),
                       ),
-                    ),
+                      if (isMe) ...[
+                        const SizedBox(width: 4),
+                        Icon(
+                          isRead ? Icons.done_all_rounded : Icons.done_rounded,
+                          size: 12,
+                          color: isRead
+                              ? const Color(0xFF3CFF7E)
+                              : Colors.white24,
+                        ),
+                      ],
+                    ],
                   ),
-
-                  // Bouton Play / Fullscreen Central
-                  Center(child: _buildCenterAction(isVideo)),
-
-                  // Badge Durée Vidéo
-                  if (isVideo) _buildVideoBadge(duration),
-                ],
-              ),
+                ),
+              ],
             ),
 
-            // Footer : Heure + Triple Check
-            Padding(
-              padding: const EdgeInsets.only(top: 6, right: 8, left: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    timestamp,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.2),
-                      fontSize: 9,
-                    ),
+            // Réaction
+            if (reaction != null)
+              Positioned(
+                bottom: -12,
+                right: isMe ? 8 : null,
+                left: isMe ? null : 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 4,
                   ),
-                  if (isMe) ...[
-                    const SizedBox(width: 5),
-                    _buildStatusIcon(status),
-                  ],
-                ],
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1A1A),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  ),
+                  child: Text(reaction, style: const TextStyle(fontSize: 15)),
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -114,43 +161,89 @@ class MediaMessage extends StatelessWidget {
   }
 
   Widget _buildMediaPreview(String? url) {
+    if (url == null || url.isEmpty) {
+      return Container(
+        color: const Color(0xFF1A1A1A),
+        child: const Center(
+          child: Icon(
+            Icons.image_not_supported_rounded,
+            color: Colors.white24,
+            size: 40,
+          ),
+        ),
+      );
+    }
     return Image.network(
-      url ??
-          "https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=500",
+      url,
       fit: BoxFit.cover,
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
+      loadingBuilder: (_, child, progress) {
+        if (progress == null) return child;
         return Container(
-          color: Colors.white.withOpacity(0.05),
-          child: const Center(
-            child: CircularProgressIndicator(
-              color: Colors.greenAccent,
-              strokeWidth: 2,
+          color: const Color(0xFF1A1A1A),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: CircularProgressIndicator(
+                    value: progress.expectedTotalBytes != null
+                        ? progress.cumulativeBytesLoaded /
+                              progress.expectedTotalBytes!
+                        : null,
+                    color: const Color(0xFF3CFF7E),
+                    strokeWidth: 2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Chargement...",
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.3),
+                    fontSize: 10,
+                  ),
+                ),
+              ],
             ),
           ),
         );
       },
-      errorBuilder: (context, error, stackTrace) => Container(
-        color: Colors.white.withOpacity(0.05),
-        child: const Icon(Icons.broken_image, color: Colors.white24, size: 40),
+      errorBuilder: (_, __, ___) => Container(
+        color: const Color(0xFF1A1A1A),
+        child: const Center(
+          child: Icon(
+            Icons.broken_image_rounded,
+            color: Colors.white24,
+            size: 40,
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildCenterAction(bool isVideo) {
+  Widget _buildCenterAction(BuildContext context, String? url, bool isVideo) {
     return ClipOval(
       child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          width: 54,
+          height: 54,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.white.withOpacity(0.1),
-            border: Border.all(color: Colors.white.withOpacity(0.2)),
+            color: isMe
+                ? const Color(0xFF3CFF7E).withOpacity(0.2)
+                : Colors.white.withOpacity(0.12),
+            border: Border.all(
+              color: isMe
+                  ? const Color(0xFF3CFF7E).withOpacity(0.5)
+                  : Colors.white.withOpacity(0.25),
+              width: 1.5,
+            ),
           ),
           child: Icon(
             isVideo ? Icons.play_arrow_rounded : Icons.fullscreen_rounded,
-            color: isMe ? Colors.greenAccent : Colors.white,
+            color: isMe ? const Color(0xFF3CFF7E) : Colors.white,
             size: 32,
           ),
         ),
@@ -160,26 +253,34 @@ class MediaMessage extends StatelessWidget {
 
   Widget _buildVideoBadge(String duration) {
     return Positioned(
-      top: 12,
-      right: 12,
+      bottom: 10,
+      right: 10,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          filter: ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            color: Colors.black45,
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.55),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white.withOpacity(0.1)),
+            ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.videocam, color: Colors.white, size: 12),
+                const Icon(
+                  Icons.play_circle_outline_rounded,
+                  color: Colors.white,
+                  size: 11,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   duration,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 10,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
@@ -190,22 +291,144 @@ class MediaMessage extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusIcon(String status) {
-    IconData icon;
-    Color color;
-    switch (status) {
-      case 'DELIVERED':
-        icon = Icons.done_all_rounded;
-        color = Colors.white38;
-        break;
-      case 'READ':
-        icon = Icons.done_all_rounded;
-        color = Colors.greenAccent;
-        break;
-      default:
-        icon = Icons.done_rounded;
-        color = Colors.white24;
-    }
-    return Icon(icon, size: 12, color: color);
+  Widget _buildTypeBadge(bool isVideo) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.45),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isVideo ? Icons.videocam_rounded : Icons.image_rounded,
+                color: isMe ? const Color(0xFF3CFF7E) : Colors.white70,
+                size: 11,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                isVideo ? "VIDÉO" : "PHOTO",
+                style: TextStyle(
+                  color: isMe ? const Color(0xFF3CFF7E) : Colors.white70,
+                  fontSize: 8,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showFullScreen(BuildContext context, String? url, bool isVideo) {
+    if (url == null) return;
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        opaque: false,
+        barrierDismissible: true,
+        pageBuilder: (_, __, ___) =>
+            _FullScreenMedia(url: url, isVideo: isVideo),
+      ),
+    );
+  }
+}
+
+// ── FULLSCREEN VIEWER ────────────────────────────────────────
+
+class _FullScreenMedia extends StatelessWidget {
+  final String url;
+  final bool isVideo;
+
+  const _FullScreenMedia({required this.url, required this.isVideo});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // Media
+          Center(
+            child: isVideo
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.08),
+                          border: Border.all(color: Colors.white24),
+                        ),
+                        child: const Icon(
+                          Icons.play_circle_fill_rounded,
+                          color: Colors.white,
+                          size: 60,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        "Lecteur vidéo",
+                        style: TextStyle(color: Colors.white54, fontSize: 14),
+                      ),
+                    ],
+                  )
+                : InteractiveViewer(
+                    panEnabled: true,
+                    minScale: 0.5,
+                    maxScale: 5,
+                    child: Image.network(
+                      url,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.broken_image,
+                        color: Colors.white54,
+                        size: 60,
+                      ),
+                    ),
+                  ),
+          ),
+
+          // Bouton fermer
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.6),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.15),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.close_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

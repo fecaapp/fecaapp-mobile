@@ -9,14 +9,31 @@ class LocalLeagueScreen extends StatefulWidget {
   State<LocalLeagueScreen> createState() => _LocalLeagueScreenState();
 }
 
-class _LocalLeagueScreenState extends State<LocalLeagueScreen> {
+class _LocalLeagueScreenState extends State<LocalLeagueScreen>
+    with AutomaticKeepAliveClientMixin {
   final SupabaseClient supabase = Supabase.instance.client;
-  List<dynamic> leagues = [];
-  bool isLoading = true;
-  bool hasError = false;
-
-  // Gestion du sport sélectionné (par défaut football)
   String selectedSport = "football";
+
+  List<Map<String, dynamic>> _leagues = [];
+  bool _isLoading = true;
+
+  static const Map<String, Color> _sportColors = {
+    'football': Color(0xFF00FF85),
+    'basketball': Color(0xFFFFA500),
+    'handball': Color(0xFFFF3131),
+    'athletics': Color(0xFFFF6B00),
+    'tennis': Color(0xFFC8FF00),
+    'volleyball': Color(0xFF9B59FF),
+    'karate': Color(0xFFFF0044),
+    'boxing': Color(0xFFFFB800),
+    'mma': Color(0xFF00CFFF),
+  };
+
+  Color get _currentSportColor =>
+      _sportColors[selectedSport] ?? const Color(0xFF00FF85);
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -24,17 +41,10 @@ class _LocalLeagueScreenState extends State<LocalLeagueScreen> {
     _fetchLeagues();
   }
 
-  // --- RÉCUPÉRATION FILTRÉE PAR SPORT ---
+  // ── Fetch classique SELECT — contourne les issues RLS avec stream ──
   Future<void> _fetchLeagues() async {
-    if (!mounted) return;
-    setState(() {
-      isLoading = true;
-      hasError = false;
-      leagues = []; // On vide la liste pour l'animation
-    });
-
+    if (mounted) setState(() => _isLoading = true);
     try {
-      // Filtrage par sport_type pour correspondre à ton Dashboard
       final data = await supabase
           .from('leagues')
           .select('*')
@@ -43,23 +53,20 @@ class _LocalLeagueScreenState extends State<LocalLeagueScreen> {
 
       if (mounted) {
         setState(() {
-          leagues = data as List<dynamic>;
-          isLoading = false;
+          _leagues = List<Map<String, dynamic>>.from(data);
+          _isLoading = false;
         });
       }
     } catch (e) {
-      debugPrint("Erreur Supabase Leagues: $e");
-      if (mounted) {
-        setState(() {
-          hasError = true;
-          isLoading = false;
-        });
-      }
+      debugPrint('❌ Erreur fetch leagues: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+
     return Scaffold(
       backgroundColor: const Color(0xFF050505),
       appBar: AppBar(
@@ -83,19 +90,6 @@ class _LocalLeagueScreenState extends State<LocalLeagueScreen> {
           ),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF00FF85).withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.sync, color: Color(0xFF00FF85), size: 20),
-              onPressed: _fetchLeagues,
-            ),
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -106,7 +100,6 @@ class _LocalLeagueScreenState extends State<LocalLeagueScreen> {
     );
   }
 
-  // --- SÉLECTEUR DE SPORT ---
   Widget _buildSportSelector() {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 15),
@@ -115,13 +108,16 @@ class _LocalLeagueScreenState extends State<LocalLeagueScreen> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 15),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _sportTab("FOOTBALL", Icons.sports_soccer, "football"),
-            const SizedBox(width: 12),
             _sportTab("BASKETBALL", Icons.sports_basketball, "basketball"),
-            const SizedBox(width: 12),
             _sportTab("HANDBALL", Icons.sports_handball, "handball"),
+            _sportTab("ATHLÉTISME", Icons.directions_run, "athletics"),
+            _sportTab("TENNIS", Icons.sports_tennis, "tennis"),
+            _sportTab("VOLLEYBALL", Icons.sports_volleyball, "volleyball"),
+            _sportTab("KARATÉ", Icons.sports_martial_arts, "karate"),
+            _sportTab("BOXE", Icons.sports_mma, "boxing"),
+            _sportTab("MMA", Icons.sports_mma, "mma"),
           ],
         ),
       ),
@@ -129,81 +125,100 @@ class _LocalLeagueScreenState extends State<LocalLeagueScreen> {
   }
 
   Widget _sportTab(String label, IconData icon, String sportKey) {
-    bool isActive = selectedSport == sportKey;
-    return GestureDetector(
-      onTap: () {
-        if (!isActive) {
+    final bool isActive = selectedSport == sportKey;
+    final Color activeColor = _sportColors[sportKey] ?? const Color(0xFF00FF85);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: GestureDetector(
+        onTap: () {
+          if (selectedSport == sportKey) return;
           setState(() => selectedSport = sportKey);
-          _fetchLeagues();
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        decoration: BoxDecoration(
-          color: isActive
-              ? const Color(0xFF00FF85)
-              : Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isActive ? Colors.black : Colors.white38,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
+          _fetchLeagues(); // ← fetch à chaque changement de sport
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          decoration: BoxDecoration(
+            color: isActive ? activeColor : Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 16,
                 color: isActive ? Colors.black : Colors.white38,
-                fontWeight: FontWeight.w900,
-                fontSize: 10,
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isActive ? Colors.black : Colors.white38,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildBody() {
-    if (isLoading && leagues.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: Color(0xFF00FF85),
-          strokeWidth: 2,
-        ),
+    if (_isLoading) {
+      return Center(
+        child: CircularProgressIndicator(color: _currentSportColor),
       );
     }
 
-    if (hasError && leagues.isEmpty) return _buildErrorState();
-
-    if (leagues.isEmpty && !isLoading) {
+    if (_leagues.isEmpty) {
       return Center(
-        child: Text(
-          "AUCUN CHAMPIONNAT ${selectedSport.toUpperCase()} ACTIF",
-          style: const TextStyle(color: Colors.white24, fontSize: 10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.emoji_events_outlined,
+              color: _currentSportColor.withOpacity(0.3),
+              size: 48,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              "AUCUN CHAMPIONNAT\n${selectedSport.toUpperCase()} ACTIF",
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white24,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1,
+              ),
+            ),
+          ],
         ),
       );
     }
 
     return RefreshIndicator(
+      color: _currentSportColor,
+      backgroundColor: const Color(0xFF111111),
       onRefresh: _fetchLeagues,
-      color: const Color(0xFF00FF85),
-      backgroundColor: Colors.black,
       child: ListView.builder(
-        itemCount: leagues.length,
+        itemCount: _leagues.length,
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+        physics: const AlwaysScrollableScrollPhysics(),
         itemBuilder: (context, i) {
-          final league = leagues[i];
-          final String lId = league['id'].toString();
-          final String lName = league['name'] ?? "Championnat";
-          final String lGender = league['gender'] ?? "Masculin";
-          final String? lLogo = league['logo'] ?? league['logo_url'];
-          final bool isFem = lGender.toLowerCase().contains('fém');
-
-          return _buildLeagueCard(lId, lName, lGender, isFem, lLogo);
+          final league = _leagues[i];
+          final String gender = (league['gender'] ?? 'Masculin').toString();
+          final bool isFem = gender.toLowerCase().contains('fém');
+          final String? logo = league['logo'] ?? league['logo_url'];
+          return _buildLeagueCard(
+            league['id'].toString(),
+            league['name'] ?? 'Championnat',
+            gender,
+            isFem,
+            logo,
+          );
         },
       ),
     );
@@ -216,7 +231,9 @@ class _LocalLeagueScreenState extends State<LocalLeagueScreen> {
     bool isFem,
     String? logo,
   ) {
-    Color mainColor = isFem ? const Color(0xFFFF007A) : const Color(0xFF00FF85);
+    final Color mainColor = isFem
+        ? const Color(0xFFFF007A)
+        : _currentSportColor;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -240,8 +257,7 @@ class _LocalLeagueScreenState extends State<LocalLeagueScreen> {
                 leagueName: name,
                 leagueId: id,
                 gender: gender,
-                sportType:
-                    selectedSport, // On passe le sport à la page suivante
+                sportType: selectedSport,
               ),
             ),
           ),
@@ -256,91 +272,75 @@ class _LocalLeagueScreenState extends State<LocalLeagueScreen> {
                 colors: [mainColor.withOpacity(0.08), Colors.transparent],
               ),
             ),
-            child: Stack(
-              children: [
-                Positioned(
-                  right: -10,
-                  bottom: -10,
-                  child: Icon(
-                    isFem ? Icons.female : Icons.male,
-                    size: 80,
-                    color: mainColor.withOpacity(0.03),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 65,
-                        height: 65,
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: mainColor.withOpacity(0.3),
-                            width: 1,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  _buildLeagueLogo(logo, mainColor),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name.toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(18),
-                          child: (logo != null && logo.isNotEmpty)
-                              ? Image.network(
-                                  logo,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) => Icon(
-                                    Icons.emoji_events_outlined,
-                                    color: mainColor,
-                                    size: 30,
-                                  ),
-                                )
-                              : Icon(
-                                  Icons.emoji_events_outlined,
-                                  color: mainColor,
-                                  size: 30,
-                                ),
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        const SizedBox(height: 6),
+                        Row(
                           children: [
-                            Text(
-                              name.toUpperCase(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w900,
-                              ),
+                            _buildBadge(
+                              isFem ? "DAMES" : "MESSIEURS",
+                              mainColor,
                             ),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                _buildBadge(
-                                  isFem ? "DAMES" : "MESSIEURS",
-                                  mainColor,
-                                ),
-                                const SizedBox(width: 8),
-                                _buildBadge("ELITE", Colors.white38),
-                              ],
-                            ),
+                            const SizedBox(width: 8),
+                            _buildBadge("ELITE", Colors.white38),
                           ],
                         ),
-                      ),
-                      Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        color: mainColor.withOpacity(0.5),
-                        size: 18,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                  Icon(
+                    Icons.chevron_right,
+                    color: mainColor.withOpacity(0.5),
+                    size: 20,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLeagueLogo(String? logo, Color mainColor) {
+    return Container(
+      width: 65,
+      height: 65,
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: mainColor.withOpacity(0.3), width: 1),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: (logo != null && logo.isNotEmpty)
+            ? Image.network(
+                logo,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => Icon(
+                  Icons.emoji_events_outlined,
+                  color: mainColor,
+                  size: 30,
+                ),
+              )
+            : Icon(Icons.emoji_events_outlined, color: mainColor, size: 30),
       ),
     );
   }
@@ -361,38 +361,6 @@ class _LocalLeagueScreenState extends State<LocalLeagueScreen> {
           fontWeight: FontWeight.bold,
           letterSpacing: 1,
         ),
-      ),
-    );
-  }
-
-  Widget _buildErrorState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.wifi_off_rounded, color: Colors.white10, size: 70),
-          const SizedBox(height: 20),
-          const Text(
-            "SYNCHRONISATION INTERROMPUE",
-            style: TextStyle(color: Colors.white38, fontSize: 10),
-          ),
-          const SizedBox(height: 30),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00FF85),
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-            ),
-            onPressed: _fetchLeagues,
-            child: const Text(
-              "RECONNEXION",
-              style: TextStyle(fontWeight: FontWeight.w900),
-            ),
-          ),
-        ],
       ),
     );
   }

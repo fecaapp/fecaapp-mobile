@@ -2917,7 +2917,7 @@ class _CvItem {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// CAROUSEL MÉDIA — inchangé
+// CAROUSEL MÉDIA
 // ═══════════════════════════════════════════════════════════════
 
 class _ProfileMediaPostCard extends StatefulWidget {
@@ -2960,6 +2960,7 @@ class _ProfileMediaPostCardState extends State<_ProfileMediaPostCard> {
   final PageController _pg = PageController();
   int _cur = 0;
   bool _playing = false;
+  bool _textExpanded = false;
 
   @override
   void dispose() {
@@ -2974,459 +2975,470 @@ class _ProfileMediaPostCardState extends State<_ProfileMediaPostCard> {
     return '$n';
   }
 
+  Widget _richText(String content, {int? maxLines}) {
+    final words = content.split(' ');
+    final spans = <TextSpan>[];
+    for (int i = 0; i < words.length; i++) {
+      final w = words[i];
+      final isLast = i == words.length - 1;
+      if (w.startsWith('#') || w.startsWith('@')) {
+        spans.add(
+          TextSpan(
+            text: w + (isLast ? '' : ' '),
+            style: TextStyle(
+              color: w.startsWith('#')
+                  ? const Color(0xFF3CFF7E)
+                  : Colors.blueAccent,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        );
+      } else {
+        spans.add(TextSpan(text: w + (isLast ? '' : ' ')));
+      }
+    }
+    return RichText(
+      maxLines: maxLines,
+      overflow: maxLines != null ? TextOverflow.ellipsis : TextOverflow.clip,
+      text: TextSpan(
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          height: 1.55,
+        ),
+        children: spans,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final total = widget.mediaUrls.length;
-    final screenH = MediaQuery.of(context).size.height;
-    final cardH = (screenH * 0.52).clamp(280.0, 480.0);
+    final views = widget.post['views_count'] ?? 0;
+    final hasLong = widget.content.length > 120;
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: Colors.white.withOpacity(0.09)),
+        color: const Color(0xFF0D0D0D),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.45),
-            blurRadius: 18,
-            offset: const Offset(0, 7),
+            color: Colors.black.withOpacity(0.35),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            height: cardH,
-            child: Stack(
+          // ── Barre gradient top ──
+          Container(
+            height: 2.5,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF3CFF7E), Color(0xFF00C8FF)],
+              ),
+            ),
+          ),
+
+          // ── Header (avatar + nom + badge + date + menu) ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+            child: Row(
               children: [
-                Positioned.fill(
-                  child: widget.postType == 'VIDEO'
-                      ? (_playing
-                            ? VideoPostPlayer(videoUrl: widget.mediaUrls[0])
-                            : GestureDetector(
-                                onTap: () => setState(() => _playing = true),
-                                child: Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    Container(color: Colors.black),
-                                    const Center(
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.play_circle_fill_rounded,
-                                            color: Colors.white,
-                                            size: 64,
-                                          ),
-                                          SizedBox(height: 10),
-                                          Text(
-                                            "Appuyer pour lire",
-                                            style: TextStyle(
-                                              color: Colors.white54,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ))
-                      : PageView.builder(
-                          controller: _pg,
-                          itemCount: total,
-                          onPageChanged: (i) => setState(() => _cur = i),
-                          itemBuilder: (_, i) => GestureDetector(
-                            onTap: () => widget.onImageTap(widget.mediaUrls[i]),
-                            child: Image.network(
-                              widget.mediaUrls[i],
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              height: double.infinity,
-                              loadingBuilder: (_, child, p) => p == null
-                                  ? child
-                                  : Container(
-                                      color: const Color(0xFF1A1A1A),
-                                      child: const Center(
-                                        child: CircularProgressIndicator(
-                                          color: Color(0xFF3CFF7E),
-                                          strokeWidth: 2,
-                                        ),
-                                      ),
-                                    ),
-                              errorBuilder: (_, __, ___) => Container(
-                                color: const Color(0xFF1A1A1A),
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.broken_image_rounded,
-                                    color: Colors.white24,
-                                    size: 36,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                ),
-                // Top gradient
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: 100,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.5),
-                          Colors.transparent,
-                        ],
-                      ),
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: SweepGradient(
+                      colors: [
+                        Colors.green,
+                        Colors.red,
+                        Colors.yellow,
+                        Colors.green,
+                      ],
                     ),
                   ),
-                ),
-                // Bottom gradient
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: 160,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.82),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                // Header
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  right: 12,
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: SweepGradient(
-                            colors: [
-                              Colors.green,
-                              Colors.red,
-                              Colors.yellow,
-                              Colors.green,
-                            ],
-                          ),
-                        ),
-                        child: CircleAvatar(
-                          radius: 17,
-                          backgroundColor: Colors.black,
-                          backgroundImage:
-                              (widget.authorImg?.isNotEmpty ?? false)
-                              ? NetworkImage(widget.authorImg!)
-                              : null,
-                          child: (widget.authorImg?.isEmpty ?? true)
-                              ? Text(
-                                  widget.authorName.isNotEmpty
-                                      ? widget.authorName[0].toUpperCase()
-                                      : "L",
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 12,
-                                  ),
-                                )
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    widget.authorName,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 12,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Icon(
-                                  widget.isAuthorCertified
-                                      ? Icons.verified
-                                      : Icons.stars_rounded,
-                                  color: widget.isAuthorCertified
-                                      ? Colors.blueAccent
-                                      : Colors.amber,
-                                  size: 12,
-                                ),
-                              ],
-                            ),
-                            Text(
-                              widget.timeAgo(widget.createdAt),
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.45),
-                                fontSize: 9,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: widget.onOptions,
-                        child: const Padding(
-                          padding: EdgeInsets.only(left: 6),
-                          child: Icon(
-                            Icons.more_horiz,
-                            color: Colors.white70,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Counter
-                if (total > 1)
-                  Positioned(
-                    top: 56,
-                    right: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.60),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.12),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 5,
-                            height: 5,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF3CFF7E),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            "${_cur + 1} / $total",
+                  child: CircleAvatar(
+                    radius: 17,
+                    backgroundColor: Colors.black,
+                    backgroundImage: (widget.authorImg?.isNotEmpty ?? false)
+                        ? NetworkImage(widget.authorImg!)
+                        : null,
+                    child: (widget.authorImg?.isEmpty ?? true)
+                        ? Text(
+                            widget.authorName.isNotEmpty
+                                ? widget.authorName[0].toUpperCase()
+                                : 'L',
                             style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 12,
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
+                          )
+                        : null,
                   ),
-                // Nav prev
-                if (total > 1 && _cur > 0)
-                  Positioned(
-                    left: 8,
-                    top: 0,
-                    bottom: 0,
-                    child: Center(
-                      child: GestureDetector(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          _pg.previousPage(
-                            duration: const Duration(milliseconds: 320),
-                            curve: Curves.easeInOutCubic,
-                          );
-                        },
-                        child: Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.12),
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.chevron_left_rounded,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                // Nav next
-                if (total > 1 && _cur < total - 1)
-                  Positioned(
-                    right: 8,
-                    top: 0,
-                    bottom: 0,
-                    child: Center(
-                      child: GestureDetector(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          _pg.nextPage(
-                            duration: const Duration(milliseconds: 320),
-                            curve: Curves.easeInOutCubic,
-                          );
-                        },
-                        child: Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.12),
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.chevron_right_rounded,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                // Dots
-                if (total > 1 && total <= 10)
-                  Positioned(
-                    bottom: 64,
-                    left: 0,
-                    right: 0,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(total, (i) {
-                        final on = i == _cur;
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 280),
-                          margin: const EdgeInsets.symmetric(horizontal: 3),
-                          width: on ? 16 : 5,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: on
-                                ? Colors.white
-                                : Colors.white.withOpacity(0.32),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        );
-                      }),
-                    ),
-                  ),
-                // ── Texte en haut de la card (gradient top) ──
-                if (widget.content.isNotEmpty)
-                  Positioned(
-                    top: 70,
-                    left: 14,
-                    right: 14,
-                    child: Text(
-                      widget.content,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.92),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        height: 1.4,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black.withOpacity(0.6),
-                            blurRadius: 8,
-                          ),
-                        ],
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                // ── Actions bar en bas ──
-                Positioned(
-                  bottom: 0,
-                  left: 12,
-                  right: 12,
+                ),
+                const SizedBox(width: 9),
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Row(
                         children: [
-                          _p(
-                            widget.isLiked
-                                ? Icons.favorite_rounded
-                                : Icons.favorite_border_rounded,
-                            _fmt(widget.likesCount),
-                            widget.isLiked ? Colors.red : Colors.white,
-                            widget.onLike,
-                          ),
-                          const SizedBox(width: 7),
-                          _p(
-                            Icons.chat_bubble_outline_rounded,
-                            _fmt(widget.commentsCount),
-                            Colors.white,
-                            widget.onComment,
-                          ),
-                          const SizedBox(width: 7),
-                          _p(
-                            Icons.repeat_rounded,
-                            _fmt(widget.repostsCount),
-                            widget.repostsCount > 0
-                                ? const Color(0xFF3CFF7E)
-                                : Colors.white,
-                            widget.onRepost,
-                          ),
-                          const Spacer(),
-                          // ── Vues sobre ──
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.remove_red_eye_outlined,
-                                size: 12,
-                                color: Colors.white.withOpacity(0.55),
+                          Flexible(
+                            child: Text(
+                              widget.authorName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12,
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                _fmt(widget.post['views_count'] ?? 0),
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.55),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            widget.isAuthorCertified
+                                ? Icons.verified
+                                : Icons.stars_rounded,
+                            color: widget.isAuthorCertified
+                                ? Colors.blueAccent
+                                : Colors.amber,
+                            size: 12,
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      Text(
+                        widget.timeAgo(widget.createdAt),
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.45),
+                          fontSize: 9,
+                        ),
+                      ),
                     ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: widget.onOptions,
+                  child: const Padding(
+                    padding: EdgeInsets.only(left: 6),
+                    child: Icon(
+                      Icons.more_horiz,
+                      color: Colors.white54,
+                      size: 20,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
+
+          // ── Texte PROPRE au-dessus de l'image ──
+          if (widget.content.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+              child: GestureDetector(
+                onTap: hasLong
+                    ? () => setState(() => _textExpanded = !_textExpanded)
+                    : null,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _richText(
+                      widget.content,
+                      maxLines: _textExpanded ? null : 2,
+                    ),
+                    if (hasLong) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        _textExpanded ? 'voir moins' : 'voir plus',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.38),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+
+          const SizedBox(height: 10),
+
+          // ── Media (image/vidéo/carousel) ──
+          SizedBox(
+            height: 300,
+            child: widget.postType == 'VIDEO'
+                ? (_playing
+                      ? VideoPostPlayer(videoUrl: widget.mediaUrls[0])
+                      : GestureDetector(
+                          onTap: () => setState(() => _playing = true),
+                          child: Container(
+                            color: Colors.black,
+                            child: const Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.play_circle_fill_rounded,
+                                    color: Colors.white,
+                                    size: 64,
+                                  ),
+                                  SizedBox(height: 10),
+                                  Text(
+                                    'Appuyer pour lire',
+                                    style: TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ))
+                : Stack(
+                    children: [
+                      PageView.builder(
+                        controller: _pg,
+                        itemCount: total,
+                        onPageChanged: (i) => setState(() => _cur = i),
+                        itemBuilder: (_, i) => GestureDetector(
+                          onTap: () => widget.onImageTap(widget.mediaUrls[i]),
+                          child: Image.network(
+                            widget.mediaUrls[i],
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                            loadingBuilder: (_, child, p) => p == null
+                                ? child
+                                : Container(
+                                    color: const Color(0xFF1A1A1A),
+                                    child: const Center(
+                                      child: CircularProgressIndicator(
+                                        color: Color(0xFF3CFF7E),
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  ),
+                            errorBuilder: (_, __, ___) => Container(
+                              color: const Color(0xFF1A1A1A),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.broken_image_rounded,
+                                  color: Colors.white24,
+                                  size: 36,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Compteur
+                      if (total > 1)
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.60),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.12),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 5,
+                                  height: 5,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF3CFF7E),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  '${_cur + 1} / $total',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      // Nav prev
+                      if (total > 1 && _cur > 0)
+                        Positioned(
+                          left: 8,
+                          top: 0,
+                          bottom: 0,
+                          child: Center(
+                            child: GestureDetector(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                _pg.previousPage(
+                                  duration: const Duration(milliseconds: 320),
+                                  curve: Curves.easeInOutCubic,
+                                );
+                              },
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.5),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.12),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.chevron_left_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      // Nav next
+                      if (total > 1 && _cur < total - 1)
+                        Positioned(
+                          right: 8,
+                          top: 0,
+                          bottom: 0,
+                          child: Center(
+                            child: GestureDetector(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                _pg.nextPage(
+                                  duration: const Duration(milliseconds: 320),
+                                  curve: Curves.easeInOutCubic,
+                                );
+                              },
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.5),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.12),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      // Dots
+                      if (total > 1 && total <= 10)
+                        Positioned(
+                          bottom: 10,
+                          left: 0,
+                          right: 0,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(total, (i) {
+                              final on = i == _cur;
+                              return AnimatedContainer(
+                                duration: const Duration(milliseconds: 280),
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 3,
+                                ),
+                                width: on ? 16 : 5,
+                                height: 5,
+                                decoration: BoxDecoration(
+                                  color: on
+                                      ? Colors.white
+                                      : Colors.white.withOpacity(0.32),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                    ],
+                  ),
+          ),
+
+          // ── Thumbnail strip ──
           if (total > 1 && widget.postType != 'VIDEO') _strip(total),
+
+          // ── Divider ──
+          Divider(color: Colors.white.withOpacity(0.06), height: 1),
+
+          // ── Actions bar : [❤️][💬][🔁] ··· [👁 vues] ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+            child: Row(
+              children: [
+                _p(
+                  widget.isLiked
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  _fmt(widget.likesCount),
+                  widget.isLiked ? Colors.red : Colors.white,
+                  widget.onLike,
+                ),
+                const SizedBox(width: 7),
+                _p(
+                  Icons.chat_bubble_outline_rounded,
+                  _fmt(widget.commentsCount),
+                  Colors.white,
+                  widget.onComment,
+                ),
+                const SizedBox(width: 7),
+                _p(
+                  Icons.repeat_rounded,
+                  _fmt(widget.repostsCount),
+                  widget.repostsCount > 0
+                      ? const Color(0xFF3CFF7E)
+                      : Colors.white,
+                  widget.onRepost,
+                ),
+                const Spacer(),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.remove_red_eye_outlined,
+                      size: 13,
+                      color: Colors.white.withOpacity(0.3),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _fmt(views),
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.3),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -3441,8 +3453,8 @@ class _ProfileMediaPostCardState extends State<_ProfileMediaPostCard> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.10),
-            borderRadius: BorderRadius.circular(36),
+            color: Colors.white.withOpacity(0.06),
+            borderRadius: BorderRadius.circular(40),
             border: Border.all(color: Colors.white.withOpacity(0.07)),
           ),
           child: Row(
@@ -3520,7 +3532,7 @@ class _ProfileMediaPostCardState extends State<_ProfileMediaPostCard> {
               ),
               child: Center(
                 child: Text(
-                  "+$over",
+                  '+$over',
                   style: const TextStyle(
                     color: Colors.white54,
                     fontSize: 10,

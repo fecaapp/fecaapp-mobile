@@ -121,12 +121,14 @@
 </div>
 <div class="main-layout">
     <div class="side-panel">
+
         <div class="panel-card green-border">
             <h3><span>📡</span><span style="color:var(--primary);">PILOTAGE DIRECT</span></h3>
             <label>Combat à piloter</label>
             <select id="matchSelector"><option value="">Chargement...</option></select>
             <button class="btn btn-green" onclick="lancerRegie()">LANCER LA RÉGIE</button>
         </div>
+
         <div class="panel-card red-border">
             <h3><span>🥊</span><span style="color:var(--red);">CONTRÔLE LIVE</span></h3>
             <label>Round en cours</label>
@@ -145,6 +147,7 @@
                 <button class="finish-btn fin-red"  onclick="stopTimer()">⏸ STOP</button>
             </div>
         </div>
+
         <div class="panel-card orange-border">
             <h3><span>💥</span><span style="color:var(--orange);">FIN DE COMBAT</span></h3>
             <div class="finish-grid">
@@ -160,6 +163,7 @@
                 <button class="finish-btn" onclick="addFinish('none','no_contest')" style="grid-column:1/-1;background:rgba(255,255,255,0.05);color:var(--text-dim);border:1px solid var(--border);font-size:8px;">NO CONTEST</button>
             </div>
         </div>
+
         <div class="panel-card" style="border-color:rgba(0,255,133,0.3)">
             <h3><span>📊</span><span style="color:var(--primary);">STATS EN DIRECT</span></h3>
             <label>Frappes totales — ROUGE</label>
@@ -176,6 +180,7 @@
             <input type="number" id="statBlueSub" placeholder="Ex: 0">
             <button class="btn btn-green" onclick="updateStats()">METTRE À JOUR STATS</button>
         </div>
+
         <div class="panel-card" style="border-color:rgba(0,255,133,0.25)">
             <h3><span>📅</span><span style="color:var(--primary);">PROGRAMMER UN COMBAT</span></h3>
             <label>Organisation / Gala (Nom de la ligue)</label>
@@ -186,16 +191,16 @@
             <input type="text" id="setupArena" placeholder="Ex: Palais des Sports">
             <label>Catégorie de poids</label>
             <select id="setupWeight">
-                <option value="paille">PAILLE (-52 kg)</option>
-                <option value="mouche">MOUCHE (-57 kg)</option>
-                <option value="coq">COQ (-61 kg)</option>
-                <option value="plume">PLUME (-66 kg)</option>
-                <option value="léger">LÉGER (-70 kg)</option>
-                <option value="super_léger">SUPER LÉGER (-77 kg)</option>
-                <option value="welter">WELTER (-84 kg)</option>
-                <option value="super_welter">SUPER WELTER (-93 kg)</option>
-                <option value="lourd">LOURD (-120 kg)</option>
-                <option value="super_lourd">SUPER LOURD (+120 kg)</option>
+                <option value="-52 KG">PAILLE (-52 kg)</option>
+                <option value="-57 KG">MOUCHE (-57 kg)</option>
+                <option value="-61 KG">COQ (-61 kg)</option>
+                <option value="-66 KG">PLUME (-66 kg)</option>
+                <option value="-70 KG">LÉGER (-70 kg)</option>
+                <option value="-77 KG">SUPER LÉGER (-77 kg)</option>
+                <option value="-84 KG">WELTER (-84 kg)</option>
+                <option value="-93 KG">SUPER WELTER (-93 kg)</option>
+                <option value="-120 KG">LOURD (-120 kg)</option>
+                <option value="+120 KG">SUPER LOURD (+120 kg)</option>
             </select>
             <label>Nombre de rounds</label>
             <select id="setupRounds">
@@ -227,6 +232,55 @@
             <input type="datetime-local" id="setupTime">
             <button class="btn btn-green" onclick="createMatch()">ENREGISTRER EN BASE</button>
         </div>
+
+        <!-- ✅ NOUVEAU : ADMIN CLASSEMENT MMA -->
+        <div class="panel-card" style="border-color:var(--primary);">
+            <h3><span>🏆</span><span style="color:var(--primary);">ADMIN CLASSEMENT</span></h3>
+            <label>Ligue cible</label>
+            <select id="standingsLeagueSelector"><option value="">Chargement...</option></select>
+            <label>Nom du Combattant</label>
+            <input type="text" id="standingsFighterName" placeholder="Nom complet">
+            <label>Genre</label>
+            <select id="standingsGender">
+                <option value="Masculin">Masculin</option>
+                <option value="Féminin">Féminin</option>
+            </select>
+            <label>Catégorie de poids</label>
+            <select id="standingsWeightClass">
+                <option value="-52 KG">PAILLE (-52 kg)</option>
+                <option value="-57 KG">MOUCHE (-57 kg)</option>
+                <option value="-61 KG">COQ (-61 kg)</option>
+                <option value="-66 KG">PLUME (-66 kg)</option>
+                <option value="-70 KG">LÉGER (-70 kg)</option>
+                <option value="-77 KG">SUPER LÉGER (-77 kg)</option>
+                <option value="-84 KG">WELTER (-84 kg)</option>
+                <option value="-93 KG">SUPER WELTER (-93 kg)</option>
+                <option value="-120 KG">LOURD (-120 kg)</option>
+                <option value="+120 KG">SUPER LOURD (+120 kg)</option>
+            </select>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px;">
+                <input type="number" id="standingsWon"    placeholder="V">
+                <input type="number" id="standingsLost"   placeholder="D">
+                <input type="number" id="standingsKO"     placeholder="KO">
+                <input type="number" id="standingsTKO"    placeholder="TKO">
+                <input type="number" id="standingsSub"    placeholder="SUB">
+                <input type="number" id="standingsPoints" placeholder="PTS" value="0">
+            </div>
+            <label>Nationalité</label>
+            <input type="text" id="standingsNationality" placeholder="Ex: Cameroun">
+            <label>Garde</label>
+            <input type="text" id="standingsStance" placeholder="Orthodoxe / Southpaw">
+            <label>URL Photo</label>
+            <input type="text" id="standingsPhoto" placeholder="https://...">
+            <label style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+                <input type="checkbox" id="standingsChampion" style="width:auto;"> Champion 🏆
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+                <input type="checkbox" id="standingsContender" style="width:auto;"> Prétendant #1
+            </label>
+            <button class="btn btn-green" onclick="saveFighterToStandings()">ENREGISTRER COMBATTANT</button>
+        </div>
+
     </div>
     <div class="regie-area" id="regieContainer">
         <div class="regie-empty">

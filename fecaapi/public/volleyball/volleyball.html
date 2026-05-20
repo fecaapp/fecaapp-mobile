@@ -187,15 +187,33 @@
             </div>
             <button class="btn btn-green" onclick="createMatch()">ENREGISTRER EN BASE</button>
         </div>
-        <div class="panel-card" style="border-color:rgba(155,89,255,0.3)">
-            <h3><span>🏆</span> <span style="color:var(--primary);">CLASSEMENT</span></h3>
+
+        <!-- ✅ ADMIN CLASSEMENT VOLLEYBALL -->
+        <div class="panel-card" style="border-color:rgba(155,89,255,0.8);">
+            <h3><span>🏆</span> <span style="color:var(--primary);">ADMIN CLASSEMENT</span></h3>
             <label>Ligue cible</label>
             <select id="standingsLeagueSelector"><option value="">Chargement...</option></select>
             <label>Nom du Club</label>
-            <input type="text" id="rankTeam" placeholder="Nom du Club">
+            <input type="text" id="standingsTeamName" placeholder="Nom du club">
+            <label>Genre</label>
+            <select id="standingsGender">
+                <option value="Masculin">MASCULIN</option>
+                <option value="Féminin">FÉMININ</option>
+                <option value="Mixte">BEACH MIXTE</option>
+            </select>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px;">
+                <input type="number" id="standingsPlayed"         placeholder="MJ">
+                <input type="number" id="standingsPoints"         placeholder="PTS" value="0">
+                <input type="number" id="standingsWon"            placeholder="V">
+                <input type="number" id="standingsLost"           placeholder="D">
+                <input type="number" id="standingsSetsWon"        placeholder="Sets +">
+                <input type="number" id="standingsSetsLost"       placeholder="Sets -">
+                <input type="number" id="standingsPointsScored"   placeholder="Pts +">
+                <input type="number" id="standingsPointsConceded" placeholder="Pts -">
+            </div>
             <label>URL Logo</label>
-            <input type="text" id="rankLogo" placeholder="https://...">
-            <button class="btn btn-purple" onclick="addToStandings()">AJOUTER AU CLASSEMENT</button>
+            <input type="text" id="standingsLogo" placeholder="https://...">
+            <button class="btn btn-purple" onclick="saveTeamToStandings()">ENREGISTRER CLUB</button>
         </div>
     </div>
     <div class="regie-area" id="regieContainer">

@@ -159,7 +159,7 @@ class _VoiceMessageState extends State<VoiceMessage>
                           children: [
                             AnimatedBuilder(
                               animation: _waveAnim,
-                              builder: (_, __) => SizedBox(
+                              builder: (_, _) => SizedBox(
                                 height: 32,
                                 child: Row(
                                   mainAxisAlignment:

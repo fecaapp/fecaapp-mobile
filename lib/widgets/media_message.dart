@@ -209,7 +209,7 @@ class MediaMessage extends StatelessWidget {
           ),
         );
       },
-      errorBuilder: (_, __, ___) => Container(
+      errorBuilder: (_, _, _) => Container(
         color: const Color(0xFF1A1A1A),
         child: const Center(
           child: Icon(
@@ -334,8 +334,7 @@ class MediaMessage extends StatelessWidget {
       PageRouteBuilder(
         opaque: false,
         barrierDismissible: true,
-        pageBuilder: (_, __, ___) =>
-            _FullScreenMedia(url: url, isVideo: isVideo),
+        pageBuilder: (_, _, _) => _FullScreenMedia(url: url, isVideo: isVideo),
       ),
     );
   }
@@ -389,7 +388,7 @@ class _FullScreenMedia extends StatelessWidget {
                     child: Image.network(
                       url,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Icon(
+                      errorBuilder: (_, _, _) => const Icon(
                         Icons.broken_image,
                         color: Colors.white54,
                         size: 60,

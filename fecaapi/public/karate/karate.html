@@ -93,8 +93,6 @@
         .event-aka-border { border-left:2px solid var(--primary); }
         .event-ao-border  { border-left:2px solid var(--blue); }
         .section-title { font-family:'Orbitron',sans-serif; font-size:10px; color:var(--primary); letter-spacing:2px; margin-bottom:10px; }
-        .setup-fighters { display:grid; grid-template-columns:1fr auto 1fr; gap:8px; align-items:start; margin:8px 0; }
-        .vs-sep { display:flex; align-items:center; justify-content:center; padding-top:22px; color:var(--text-dim); font-family:'Orbitron',sans-serif; font-size:11px; }
         .live-badge { background:var(--primary); color:#fff; padding:3px 8px; border-radius:4px; font-family:'Orbitron',sans-serif; font-size:9px; font-weight:700; animation:blink 1s infinite; }
         @keyframes blink { 0%,100%{opacity:1;}50%{opacity:0.4;} }
         .tabs { display:flex; gap:8px; margin-bottom:16px; }
@@ -123,12 +121,14 @@
 </div>
 <div class="main-layout">
     <div class="side-panel">
+
         <div class="panel-card red-border">
             <h3><span>📡</span><span style="color:var(--primary);">PILOTAGE DIRECT</span></h3>
             <label>Combat à piloter</label>
             <select id="matchSelector"><option value="">Chargement...</option></select>
             <button class="btn btn-red" onclick="lancerRegie()">LANCER LA RÉGIE</button>
         </div>
+
         <div class="panel-card gold-border">
             <h3><span>🥋</span><span style="color:var(--gold);">SCORE EN DIRECT</span></h3>
             <label>AKA (Rouge) 🔴</label>
@@ -152,6 +152,7 @@
             </div>
             <button class="btn" style="background:#1a1a1a;color:var(--text-dim);border:1px solid var(--border);margin-top:8px;font-size:9px;" onclick="undoLast()">↩ ANNULER DERNIER</button>
         </div>
+
         <div class="panel-card green-border">
             <h3><span>📅</span><span style="color:var(--green);">PROGRAMMER UN COMBAT</span></h3>
             <label>Compétition / Tournoi (Nom de la ligue)</label>
@@ -210,20 +211,56 @@
             </div>
             <button class="btn btn-green" onclick="createMatch()">ENREGISTRER EN BASE</button>
         </div>
-        <div class="panel-card" style="border-color:rgba(255,0,68,0.3)">
-            <h3><span>🏆</span><span style="color:var(--primary);">CLASSEMENT</span></h3>
-            <label>Compétition</label>
-            <input type="text" id="rankTournoi" placeholder="Ex: CHAMPIONNAT NATIONAL">
+
+        <!-- ✅ NOUVEAU : ADMIN CLASSEMENT KARATÉ -->
+        <div class="panel-card" style="border-color:var(--primary);">
+            <h3><span>🏆</span><span style="color:var(--primary);">ADMIN CLASSEMENT</span></h3>
+            <label>Ligue cible</label>
+            <select id="standingsLeagueSelector"><option value="">Chargement...</option></select>
             <label>Nom du Combattant</label>
-            <input type="text" id="rankFighter" placeholder="Nom Combattant">
-            <label>Médaille</label>
-            <select id="rankMedal">
-                <option value="gold">🥇 OR</option>
-                <option value="silver">🥈 ARGENT</option>
-                <option value="bronze">🥉 BRONZE</option>
+            <input type="text" id="standingsFighterName" placeholder="Nom complet">
+            <label>Genre</label>
+            <select id="standingsGender">
+                <option value="Masculin">Masculin</option>
+                <option value="Féminin">Féminin</option>
             </select>
-            <button class="btn btn-red" onclick="addRanking()">AJOUTER AU CLASSEMENT</button>
+            <label>Discipline</label>
+            <select id="standingsDiscipline">
+                <option value="kumite">KUMITE</option>
+                <option value="kata">KATA</option>
+            </select>
+            <label>Catégorie de poids</label>
+            <select id="standingsWeightClass">
+                <option value="-60 KG">HOMMES -60 KG</option>
+                <option value="-67 KG">HOMMES -67 KG</option>
+                <option value="-75 KG">HOMMES -75 KG</option>
+                <option value="-84 KG">HOMMES -84 KG</option>
+                <option value="+84 KG">HOMMES +84 KG</option>
+                <option value="-50 KG">FEMMES -50 KG</option>
+                <option value="-55 KG">FEMMES -55 KG</option>
+                <option value="-61 KG">FEMMES -61 KG</option>
+                <option value="-68 KG">FEMMES -68 KG</option>
+                <option value="+68 KG">FEMMES +68 KG</option>
+            </select>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px;">
+                <input type="number" id="standingsWon"    placeholder="V">
+                <input type="number" id="standingsLost"   placeholder="D">
+                <input type="number" id="standingsDrawn"  placeholder="N">
+                <input type="number" id="standingsGold"   placeholder="🥇">
+                <input type="number" id="standingsSilver" placeholder="🥈">
+                <input type="number" id="standingsBronze" placeholder="🥉">
+            </div>
+            <label>Points</label>
+            <input type="number" id="standingsPoints" value="0">
+            <label>Club / Dojo</label>
+            <input type="text" id="standingsClub" placeholder="Ex: Dojo National">
+            <label>Nationalité</label>
+            <input type="text" id="standingsNationality" placeholder="Ex: Cameroun">
+            <label>URL Photo</label>
+            <input type="text" id="standingsPhoto" placeholder="https://...">
+            <button class="btn btn-red" onclick="saveFighterToStandings()">ENREGISTRER COMBATTANT</button>
         </div>
+
     </div>
     <div class="regie-area" id="regieContainer">
         <div class="regie-empty">

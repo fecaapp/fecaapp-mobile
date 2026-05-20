@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
-import 'dart:ui' as ui;
 import 'dart:async';
 import 'chat_screen.dart';
 import 'create_group_screen.dart';
@@ -395,7 +394,7 @@ class _MessagesScreenState extends State<MessagesScreen>
                 : ListView.separated(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     itemCount: _searchResults.length,
-                    separatorBuilder: (_, __) => Divider(
+                    separatorBuilder: (_, _) => Divider(
                       color: Colors.white.withOpacity(0.04),
                       height: 1,
                       indent: 76,
@@ -607,7 +606,7 @@ class _MessagesScreenState extends State<MessagesScreen>
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: privateConvs.length,
-        separatorBuilder: (_, __) => Divider(
+        separatorBuilder: (_, _) => Divider(
           color: Colors.white.withOpacity(0.04),
           height: 1,
           indent: 76,

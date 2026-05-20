@@ -94,20 +94,22 @@ class _CreateContentScreenState extends State<CreateContentScreen>
     try {
       if (video) {
         final file = await picker.pickVideo(source: ImageSource.gallery);
-        if (file != null)
+        if (file != null) {
           setState(() {
             _mediaFiles = [File(file.path)];
             _isVideo = true;
             _isTextOnly = false;
           });
+        }
       } else {
         final files = await picker.pickMultiImage(imageQuality: 85);
-        if (files.isNotEmpty)
+        if (files.isNotEmpty) {
           setState(() {
             _mediaFiles = files.map((f) => File(f.path)).toList();
             _isVideo = false;
             _isTextOnly = false;
           });
+        }
       }
     } catch (e) {
       debugPrint("Erreur pick: $e");

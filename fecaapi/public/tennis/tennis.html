@@ -225,21 +225,33 @@
             <input type="datetime-local" id="setupTime">
             <button class="btn btn-lime" onclick="createMatch()">ENREGISTRER EN BASE</button>
         </div>
-
-        <div class="panel-card" style="border-color:rgba(200,255,0,0.3)">
-            <h3><span>🏆</span> <span style="color:var(--primary);">CLASSEMENT ATP/WTA</span></h3>
+<!-- ✅ ADMIN CLASSEMENT TENNIS -->
+        <div class="panel-card" style="border-color:var(--primary);">
+            <h3><span>🏆</span> <span style="color:var(--primary);">ADMIN CLASSEMENT</span></h3>
             <label>Ligue cible</label>
             <select id="standingsLeagueSelector"><option value="">Chargement...</option></select>
-            <label>Joueur</label>
-            <input type="text" id="rankPlayer" placeholder="Nom Joueur">
-            <label>Points gagnés</label>
-            <input type="number" id="rankPoints" placeholder="Ex: 250">
+            <label>Nom du Joueur</label>
+            <input type="text" id="standingsPlayerName" placeholder="Nom complet">
             <label>Genre</label>
-            <select id="rankGender">
-                <option value="Masculin">MASCULIN</option>
-                <option value="Féminin">FÉMININ</option>
+            <select id="standingsGender">
+                <option value="Masculin">MASCULIN (ATP)</option>
+                <option value="Féminin">FÉMININ (WTA)</option>
+                <option value="Double">DOUBLE</option>
+                <option value="Mixte">MIXTE</option>
             </select>
-            <button class="btn btn-lime" onclick="addRanking()">AJOUTER AU CLASSEMENT</button>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px;">
+                <input type="number" id="standingsWon"       placeholder="V">
+                <input type="number" id="standingsLost"      placeholder="D">
+                <input type="number" id="standingsTitles"    placeholder="Titres">
+                <input type="number" id="standingsPoints"    placeholder="PTS" value="0">
+                <input type="number" id="standingsSetsWon"   placeholder="Sets +">
+                <input type="number" id="standingsSetsLost"  placeholder="Sets -">
+            </div>
+            <label>Nationalité</label>
+            <input type="text" id="standingsNationality" placeholder="Ex: Cameroun">
+            <label>URL Photo</label>
+            <input type="text" id="standingsPhoto" placeholder="https://...">
+            <button class="btn btn-lime" onclick="savePlayerToStandings()">ENREGISTRER JOUEUR</button>
         </div>
 
     </div>

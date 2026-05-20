@@ -81,11 +81,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           .select()
           .eq('id', uid)
           .single();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _profile = data;
           _loading = false;
         });
+      }
     } catch (e) {
       if (mounted) setState(() => _loading = false);
     }
@@ -138,8 +139,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _logout() async {
     await _supabase.auth.signOut();
-    if (mounted)
+    if (mounted) {
       Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+    }
   }
 
   void _push(Widget page) => Navigator.push(
@@ -149,13 +151,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading)
+    if (_loading) {
       return const Scaffold(
         backgroundColor: Color(0xFF0A0A0A),
         body: Center(
           child: CircularProgressIndicator(color: Color(0xFF3CFF7E)),
         ),
       );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0A),
@@ -561,7 +564,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final color = isExpired ? Colors.orangeAccent : Colors.amber;
       final label = isExpired
           ? "Certification expirée — Renouveler"
-          : "Expire dans $days jour${days! > 1 ? 's' : ''} — Renouveler";
+          : "Expire dans $days jour${days > 1 ? 's' : ''} — Renouveler";
 
       return GestureDetector(
         onTap: () {
@@ -962,7 +965,9 @@ class _CvEditScreenState extends State<_CvEditScreen> {
   }
 
   void _buildFields() {
-    for (final c in _ctrls.values) c.dispose();
+    for (final c in _ctrls.values) {
+      c.dispose();
+    }
     _ctrls.clear();
     _drops.clear();
     final fields = _getFields();
@@ -1327,13 +1332,14 @@ class _CvEditScreenState extends State<_CvEditScreen> {
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Erreur : $e"),
             backgroundColor: Colors.redAccent,
           ),
         );
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -1341,7 +1347,9 @@ class _CvEditScreenState extends State<_CvEditScreen> {
 
   @override
   void dispose() {
-    for (final c in _ctrls.values) c.dispose();
+    for (final c in _ctrls.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -1507,7 +1515,7 @@ class _CvEditScreenState extends State<_CvEditScreen> {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: DropdownButtonFormField<String>(
-        value: _drops[f.key] ?? f.items.first,
+        initialValue: _drops[f.key] ?? f.items.first,
         dropdownColor: const Color(0xFF1A1A1A),
         style: const TextStyle(color: Colors.white, fontSize: 14),
         icon: const Icon(
@@ -1940,12 +1948,13 @@ class _SecurityFormState extends State<_SecurityForm> {
             await _supabase.auth.admin.deleteUser(
               _supabase.auth.currentUser!.id,
             );
-            if (mounted)
+            if (mounted) {
               Navigator.pushNamedAndRemoveUntil(
                 context,
                 '/login',
                 (_) => false,
               );
+            }
           },
           child: const Text(
             "SUPPRIMER",
@@ -2644,8 +2653,9 @@ class _UploadScreenState extends State<UploadScreen> {
       type: FileType.custom,
       allowedExtensions: ['jpg', 'png', 'pdf', 'jpeg'],
     );
-    if (r != null && r.files.single.path != null)
+    if (r != null && r.files.single.path != null) {
       setState(() => _file = File(r.files.single.path!));
+    }
   }
 
   Future<void> _submit() async {
@@ -2981,11 +2991,12 @@ class _UploadCertScreenState extends State<UploadCertScreen> {
         'diploma_type': _isMinor ? 'ATHLETE_MINOR' : 'ATHLETE_ADULT',
         'institution': 'FECAAPP_INTERNAL',
       });
-      if (photoUrl != null)
+      if (photoUrl != null) {
         await _supabase
             .from('users')
             .update({'img_url': photoUrl})
             .eq('id', user.id);
+      }
       if (!mounted) return;
       _showSuccess();
     } catch (e) {
@@ -3227,7 +3238,7 @@ class _UploadCertScreenState extends State<UploadCertScreen> {
         ),
         Switch(
           value: _isMinor,
-          activeColor: Colors.amber,
+          activeThumbColor: Colors.amber,
           onChanged: (v) => setState(() => _isMinor = v),
         ),
       ],
@@ -3295,8 +3306,9 @@ class _UploadCertProScreenState extends State<UploadCertProScreen> {
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpg', 'png', 'jpeg'],
     );
-    if (r != null && r.files.single.path != null)
+    if (r != null && r.files.single.path != null) {
       setState(() => _file = File(r.files.single.path!));
+    }
   }
 
   Future<void> _submit() async {

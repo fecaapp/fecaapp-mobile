@@ -2,19 +2,10 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-// ==========================================
-// SOCIAL_SERVICE.DART — VERSION FINALE
-// Fix : comptage likes / comments / reposts
-// posts   → likes comptés depuis table likes (jointure)
-// talents → likes ET comments comptés depuis tables (jointure)
-// ==========================================
-
 class SocialService {
   final SupabaseClient supabase = Supabase.instance.client;
 
   // ── 1. FETCH POSTS ────────────────────────────────────────────
-  // Likes comptés depuis la jointure (pas likes_count colonne)
-  // Comments/Reposts lus depuis la colonne DB (trigger COUNT(*) fiable)
   Future<List<dynamic>> fetchPosts(String userId, {String? authorId}) async {
     try {
       var request = supabase.from('posts').select('''
@@ -31,16 +22,13 @@ class SocialService {
 
       final posts = (response as List).map((post) {
         final List likes = post['likes'] ?? [];
-
-        // Likes : compter depuis la vraie table (jamais désynchronisé)
         post['likes_count'] = likes.length;
         post['is_liked_by_me'] = likes.any(
           (l) => l['user_id'].toString() == userId.toString(),
         );
-
-        // Comments/Reposts : trigger COUNT(*) côté Supabase → fiable
         post['comments_count'] = post['comments_count'] ?? 0;
         post['reposts_count'] = post['reposts_count'] ?? 0;
+        post['views_count'] = post['views_count'] ?? 0;
         return post;
       }).toList();
 
@@ -91,6 +79,7 @@ class SocialService {
         'likes_count': 0,
         'comments_count': 0,
         'reposts_count': 0,
+        'views_count': 0,
       });
       return true;
     } catch (e) {
@@ -128,8 +117,6 @@ class SocialService {
   }
 
   // ── 4. TOGGLE LIKE (posts) ────────────────────────────────────
-  // On ne touche PAS likes_count manuellement
-  // fetchPosts recompte depuis la jointure likes(user_id)
   Future<bool> toggleLike(String postId, String userId) async {
     try {
       final existing = await supabase
@@ -145,15 +132,13 @@ class SocialService {
             .delete()
             .eq('post_id', postId)
             .eq('user_id', userId.trim());
-        return false; // unliked
+        return false;
       } else {
         await supabase.from('likes').insert({
           'post_id': postId,
           'user_id': userId.trim(),
-          // NE PAS mettre talent_id ici — sinon handle_counters
-          // va aussi toucher talents par erreur
         });
-        return true; // liked
+        return true;
       }
     } catch (e) {
       debugPrint("🦁 Erreur toggleLike: $e");
@@ -239,8 +224,6 @@ class SocialService {
   }
 
   // ── 8. AJOUTER UN COMMENTAIRE (posts) ─────────────────────────
-  // NE PAS mettre talent_id → sinon handle_counters touche talents
-  // NE PAS incrémenter comments_count manuellement → trigger COUNT(*)
   Future<bool> addComment(String postId, String userId, String content) async {
     try {
       final userData = await supabase
@@ -251,7 +234,6 @@ class SocialService {
 
       await supabase.from('comments').insert({
         'post_id': postId,
-        // talent_id intentionnellement absent → null implicite
         'author_id': userId.trim(),
         'content': content,
         'author_name': userData['full_name'],
@@ -276,7 +258,6 @@ class SocialService {
   }
 
   // ── 10. REPOST ────────────────────────────────────────────────
-  // On ne touche PAS reposts_count manuellement
   Future<void> repost(String userId, dynamic postDataOrId) async {
     try {
       Map<String, dynamic> fullPost;
@@ -292,7 +273,6 @@ class SocialService {
 
       final String authorName = fullPost['users']?['full_name'] ?? "Membre";
 
-      // Vérifier si déjà reposté
       final existingRepost = await supabase
           .from('reposts')
           .select()
@@ -323,6 +303,7 @@ class SocialService {
         'likes_count': 0,
         'comments_count': 0,
         'reposts_count': 0,
+        'views_count': 0,
       });
     } catch (e) {
       debugPrint("🦁 Erreur repost: $e");
@@ -340,8 +321,6 @@ class SocialService {
   }
 
   // ── 12. REALTIME ──────────────────────────────────────────────
-  // On écoute uniquement INSERT et DELETE sur posts
-  // Les UPDATE (compteurs) sont ignorés pour ne pas casser l'optimistic UI
   void subscribeToPosts(Function onUpdate) {
     supabase
         .channel('public:posts:stable')
@@ -360,7 +339,20 @@ class SocialService {
         .subscribe();
   }
 
-  // ── 13. VÉRIFIER LE STATUT DE SUIVI ──────────────────────────
+  // ── 13. VUES — enregistrer une vue (silencieux, anti-doublon) ─
+  // Appelle la fonction SQL record_post_view créée dans views_system.sql
+  Future<void> recordPostView(String postId, String userId) async {
+    try {
+      await supabase.rpc(
+        'record_post_view',
+        params: {'p_post_id': postId, 'p_user_id': userId},
+      );
+    } catch (_) {
+      // Silencieux — ne jamais faire crasher l'app pour une vue
+    }
+  }
+
+  // ── 14. VÉRIFIER LE STATUT DE SUIVI ──────────────────────────
   Future<bool> isFollowing(String followerId, String followingId) async {
     try {
       final res = await supabase
@@ -370,12 +362,12 @@ class SocialService {
           .eq('following_id', followingId.trim())
           .maybeSingle();
       return res != null;
-    } catch (e) {
+    } catch (_) {
       return false;
     }
   }
 
-  // ── 14. RECHERCHE ────────────────────────────────────────────
+  // ── 15. RECHERCHE ────────────────────────────────────────────
   Future<List<dynamic>> searchEverything(String query) async {
     try {
       if (query.trim().isEmpty) return [];
@@ -391,11 +383,7 @@ class SocialService {
     }
   }
 
-  // ── 15. TALENTS ──────────────────────────────────────────────
-
-  // FIX PRINCIPAL : on joint likes ET comments pour compter
-  // côté client — exactement comme fetchPosts fait pour les likes
-  // Ainsi le compteur est toujours exact même si le trigger est en retard
+  // ── 16. TALENTS ──────────────────────────────────────────────
   Future<List<dynamic>> fetchTalents(String userId, {String? talentId}) async {
     try {
       var query = supabase.from('talents').select('''
@@ -404,8 +392,6 @@ class SocialService {
         likes(user_id),
         comments(id)
       ''');
-      // On filtre les comments pour ne prendre que ceux du talent
-      // La jointure Supabase filtre automatiquement sur talent_id = talent.id
 
       if (talentId != null) query = query.eq('id', talentId);
       final response = await query.order('created_at', ascending: false);
@@ -413,21 +399,13 @@ class SocialService {
       final talents = (response as List).map((talent) {
         final List likes = talent['likes'] ?? [];
         final List comments = talent['comments'] ?? [];
-
-        // Likes : depuis la jointure → jamais désynchronisé
         talent['likes_count'] = likes.length;
         talent['is_liked_by_me'] = likes.any(
           (l) => l['user_id'].toString() == userId.trim(),
         );
-
-        // Comments : depuis la jointure → jamais désynchronisé
-        // Plus besoin du trigger handle_counters pour l'affichage
         talent['comments_count'] = comments.length;
-
-        // Reposts : trigger Supabase (pas de jointure facile)
         talent['reposts_count'] =
             int.tryParse(talent['reposts_count']?.toString() ?? '0') ?? 0;
-
         return talent;
       }).toList();
       return talents;
@@ -437,8 +415,6 @@ class SocialService {
     }
   }
 
-  // FIX : NE PAS mettre post_id dans le like d'un talent
-  // sinon le trigger sync_comments_count va toucher posts par erreur
   Future<bool> toggleTalentLike(String talentId, String userId) async {
     try {
       final existing = await supabase
@@ -454,14 +430,13 @@ class SocialService {
             .delete()
             .eq('talent_id', talentId)
             .eq('user_id', userId.trim());
-        return false; // unliked
+        return false;
       } else {
         await supabase.from('likes').insert({
           'talent_id': talentId,
           'user_id': userId.trim(),
-          // post_id intentionnellement absent → null implicite
         });
-        return true; // liked
+        return true;
       }
     } catch (e) {
       debugPrint("🦁 Erreur toggleTalentLike: $e");
@@ -469,8 +444,6 @@ class SocialService {
     }
   }
 
-  // FIX : NE PAS mettre post_id dans un commentaire de talent
-  // sinon sync_comments_count va incrémenter posts par erreur
   Future<bool> addTalentComment(
     String talentId,
     String userId,
@@ -485,7 +458,6 @@ class SocialService {
 
       await supabase.from('comments').insert({
         'talent_id': talentId,
-        // post_id intentionnellement absent → null implicite
         'author_id': userId.trim(),
         'content': content,
         'author_name': userData['full_name'],
@@ -500,7 +472,6 @@ class SocialService {
     }
   }
 
-  // ── STREAM COMMENTAIRES (talents) ────────────────────────────
   Stream<List<dynamic>> getTalentCommentsStream(String talentId) {
     return supabase
         .from('comments')
@@ -509,7 +480,6 @@ class SocialService {
         .order('created_at', ascending: true);
   }
 
-  // ── REPOST TALENT ────────────────────────────────────────────
   Future<void> talentRepost(String talentId, String userId) async {
     try {
       await supabase.from('reposts').insert({
@@ -523,7 +493,7 @@ class SocialService {
     }
   }
 
-  // ── 16. FECAAI ───────────────────────────────────────────────
+  // ── 17. FECAAI ───────────────────────────────────────────────
   Future<Map<String, String>> getUserProfileForAI(String userId) async {
     try {
       final data = await supabase

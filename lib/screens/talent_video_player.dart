@@ -812,7 +812,7 @@ class _LionHeartPartState extends State<_LionHeartPart>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _anim,
-      builder: (_, __) {
+      builder: (_, _) {
         final val = Curves.elasticOut.transform(_anim.value);
         return Opacity(
           opacity: (1.0 - _anim.value).clamp(0, 1),
@@ -865,7 +865,7 @@ class _LionStarPartState extends State<_LionStarPart>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _anim,
-      builder: (_, __) {
+      builder: (_, _) {
         final val = Curves.easeOutBack.transform(_anim.value);
         return Opacity(
           opacity: (1.2 - _anim.value).clamp(0, 1),

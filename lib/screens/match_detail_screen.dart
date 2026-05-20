@@ -15,7 +15,6 @@ class _MatchDetailScreenState extends State<MatchDetailScreen>
     with TickerProviderStateMixin {
   final SupabaseClient supabase = Supabase.instance.client;
 
-  // --- VARIABLES D'ÉTAT ---
   Map<String, dynamic>? liveData;
   List<dynamic> matchEvents = [];
   RealtimeChannel? _matchChannel;
@@ -34,7 +33,56 @@ class _MatchDetailScreenState extends State<MatchDetailScreen>
     _startClock();
   }
 
-  // --- CHARGEMENT INITIAL ---
+  // ── Helpers lecture colonnes dashboard ──────────────────────
+  // Supporte team_a_name (dashboards) ET team1_name (ancien format)
+  String get _teamAName =>
+      liveData!['team_a_name']?.toString() ??
+      liveData!['team1_name']?.toString() ??
+      'ÉQUIPE A';
+
+  String get _teamBName =>
+      liveData!['team_b_name']?.toString() ??
+      liveData!['team2_name']?.toString() ??
+      'ÉQUIPE B';
+
+  String get _teamALogo =>
+      liveData!['team_a_logo']?.toString() ??
+      liveData!['team1_logo']?.toString() ??
+      '';
+
+  String get _teamBLogo =>
+      liveData!['team_b_logo']?.toString() ??
+      liveData!['team2_logo']?.toString() ??
+      '';
+
+  // Score : d'abord score1/score2 (football direct),
+  // sinon dans le JSONB score.setsWon (volleyball),
+  // sinon dans score JSONB red/blue (boxe/mma)
+  int get _scoreA {
+    if (liveData!['score1'] != null) {
+      return int.tryParse(liveData!['score1'].toString()) ?? 0;
+    }
+    final sc = liveData!['score'];
+    if (sc is Map) {
+      if (sc['setsWon'] is List) return (sc['setsWon'] as List)[0] ?? 0;
+      if (sc['red'] != null) return int.tryParse(sc['red'].toString()) ?? 0;
+    }
+    return 0;
+  }
+
+  int get _scoreB {
+    if (liveData!['score2'] != null) {
+      return int.tryParse(liveData!['score2'].toString()) ?? 0;
+    }
+    final sc = liveData!['score'];
+    if (sc is Map) {
+      if (sc['setsWon'] is List) return (sc['setsWon'] as List)[1] ?? 0;
+      if (sc['blue'] != null) return int.tryParse(sc['blue'].toString()) ?? 0;
+    }
+    return 0;
+  }
+
+  // ── Chargement ───────────────────────────────────────────────
   Future<void> _fetchMatchInitialData() async {
     try {
       final data = await supabase
@@ -51,6 +99,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen>
       }
     } catch (e) {
       debugPrint("❌ Erreur chargement match: $e");
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -72,7 +121,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen>
     String timeStr = liveData!['time']?.toString() ?? "00:00";
     List<String> parts = timeStr.split(':');
     if (parts.length == 2) {
-      _currentSeconds = (int.parse(parts[0]) * 60) + int.parse(parts[1]);
+      _currentSeconds =
+          (int.tryParse(parts[0]) ?? 0) * 60 + (int.tryParse(parts[1]) ?? 0);
     }
   }
 
@@ -91,7 +141,6 @@ class _MatchDetailScreenState extends State<MatchDetailScreen>
     });
   }
 
-  // --- REALTIME OPTIMISÉ (ÉCOUTE STÉRÉO) ---
   void _initSupabaseRealtime() {
     _matchChannel = supabase
         .channel('match_updates_${widget.matchId}')
@@ -149,7 +198,6 @@ class _MatchDetailScreenState extends State<MatchDetailScreen>
         ),
       );
     }
-
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -189,13 +237,13 @@ class _MatchDetailScreenState extends State<MatchDetailScreen>
         children: [
           Row(
             children: [
-              _teamHeader(liveData!['team1_name'], liveData!['team1_logo']),
+              _teamHeader(_teamAName, _teamALogo),
               Expanded(
                 flex: 2,
                 child: Column(
                   children: [
                     Text(
-                      "${liveData!['score1']} - ${liveData!['score2']}",
+                      "$_scoreA - $_scoreB",
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 50,
@@ -219,7 +267,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen>
                         ),
                       ),
                       child: Text(
-                        "${liveData!['time']}${extra != "0" ? " +$extra" : ""}",
+                        "${liveData!['time'] ?? '00:00'}${extra != "0" ? " +$extra" : ""}",
                         style: TextStyle(
                           color: isLive
                               ? const Color(0xFF00FF85)
@@ -240,7 +288,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen>
                   ],
                 ),
               ),
-              _teamHeader(liveData!['team2_name'], liveData!['team2_logo']),
+              _teamHeader(_teamBName, _teamBLogo),
             ],
           ),
           _buildTABRow(),
@@ -249,23 +297,21 @@ class _MatchDetailScreenState extends State<MatchDetailScreen>
     );
   }
 
-  Widget _teamHeader(String? name, String? logo) {
+  Widget _teamHeader(String name, String logo) {
     return Expanded(
       child: Column(
         children: [
           CircleAvatar(
             radius: 30,
             backgroundColor: Colors.white10,
-            backgroundImage: (logo != null && logo.isNotEmpty)
-                ? NetworkImage(logo)
-                : null,
-            child: (logo == null || logo.isEmpty)
+            backgroundImage: logo.isNotEmpty ? NetworkImage(logo) : null,
+            child: logo.isEmpty
                 ? const Icon(Icons.shield, color: Colors.white24)
                 : null,
           ),
           const SizedBox(height: 10),
           Text(
-            name?.toUpperCase() ?? "EQUIPE",
+            name.toUpperCase(),
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: Colors.white,
@@ -368,7 +414,6 @@ class _MatchDetailScreenState extends State<MatchDetailScreen>
       ),
     );
   }
-  // ===================== CONTENU DES ONGLETS =====================
 
   Widget _buildActiveContent() {
     switch (activeTab) {
@@ -383,11 +428,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen>
     }
   }
 
-  // --- ONGLET STATISTIQUES (8 STATS HARMONISÉES) ---
   Widget _buildStats() {
     final stats = liveData!['stats'] is Map ? liveData!['stats'] as Map : {};
-
-    // Ordre strict du Dashboard
     final List<Map<String, String>> statRows = [
       {'key': 'possession', 'label': 'POSSESSION (%)'},
       {'key': 'tirscadres', 'label': 'TIRS CADRÉS'},
@@ -398,19 +440,15 @@ class _MatchDetailScreenState extends State<MatchDetailScreen>
       {'key': 'jaunes', 'label': 'CARTONS JAUNES'},
       {'key': 'rouges', 'label': 'CARTONS ROUGES'},
     ];
-
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
       children: statRows.map((stat) {
         final values = stats[stat['key']] ?? [0, 0];
         double v1 = double.tryParse(values[0].toString()) ?? 0;
         double v2 = double.tryParse(values[1].toString()) ?? 0;
-
-        // Calcul pour la barre de progression
         double total = v1 + v2;
         double ratio1 = total == 0 ? 0.5 : v1 / total;
         double ratio2 = total == 0 ? 0.5 : v2 / total;
-
         return Container(
           margin: const EdgeInsets.only(bottom: 25),
           child: Column(
@@ -472,7 +510,6 @@ class _MatchDetailScreenState extends State<MatchDetailScreen>
     );
   }
 
-  // --- ONGLET ÉVÉNEMENTS (TEMPS RÉEL À LA SECONDE) ---
   Widget _buildEvents() {
     if (matchEvents.isEmpty) {
       return const Center(
@@ -486,14 +523,12 @@ class _MatchDetailScreenState extends State<MatchDetailScreen>
         ),
       );
     }
-
     return ListView.builder(
       itemCount: matchEvents.length,
       padding: const EdgeInsets.all(25),
       itemBuilder: (c, i) {
         final e = matchEvents[i];
         bool isT1 = e['team'].toString() == "1";
-
         return Container(
           margin: const EdgeInsets.only(bottom: 25),
           child: Row(
@@ -600,19 +635,16 @@ class _MatchDetailScreenState extends State<MatchDetailScreen>
     ),
   );
 
-  // --- ONGLET LINEUP (FORMATION ET ARBITRES) ---
   Widget _buildLineup() {
     return ListView(
       physics: const BouncingScrollPhysics(),
       children: [
-        // Terrain Tactique
         SoccerFieldWidget(
           lineup1: _parseLineup(liveData?['lineup1']),
           lineup2: _parseLineup(liveData?['lineup2']),
           positions: liveData?['positions'],
           stadium: (liveData?['stadium'] ?? "STADE NON DÉFINI").toString(),
         ),
-
         _buildInfoSection(
           "📊 FORMATION",
           liveData!['formation1']?.toString() ?? "-",
@@ -638,8 +670,6 @@ class _MatchDetailScreenState extends State<MatchDetailScreen>
           liveData!['coach1']?.toString() ?? "-",
           liveData!['coach2']?.toString() ?? "-",
         ),
-
-        // Section Arbitres
         _buildSingleInfoSection(
           "⚖️ ARBITRE PRINCIPAL",
           liveData!['referee_main']?.toString() ?? "-",
@@ -648,7 +678,6 @@ class _MatchDetailScreenState extends State<MatchDetailScreen>
           "🚩 ARBITRES DE TOUCHES",
           liveData!['referees_side']?.toString() ?? "-",
         ),
-
         const SizedBox(height: 40),
       ],
     );

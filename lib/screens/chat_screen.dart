@@ -154,11 +154,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               .limit(100);
 
       final msgs = List<Map<String, dynamic>>.from(response);
-      if (mounted)
+      if (mounted) {
         setState(() {
           _messages = msgs;
           _isLoading = false;
         });
+      }
       _msgCache[_cacheKey] = msgs;
       if (!widget.isGroup) _markAsRead();
     } catch (e) {
@@ -272,13 +273,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       _clearReply();
     } catch (e) {
       debugPrint("Erreur media: $e");
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Erreur: $e"),
             backgroundColor: Colors.redAccent,
           ),
         );
+      }
     } finally {
       if (mounted) setState(() => _isSending = false);
     }
@@ -912,7 +914,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                               ),
                             );
                           },
-                          errorBuilder: (_, __, ___) => Container(
+                          errorBuilder: (_, _, _) => Container(
                             width: 230,
                             height: 210,
                             color: const Color(0xFF1A1A1A),
@@ -992,7 +994,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       PageRouteBuilder(
         opaque: false,
         barrierDismissible: true,
-        pageBuilder: (_, __, ___) => Scaffold(
+        pageBuilder: (_, _, _) => Scaffold(
           backgroundColor: Colors.black.withOpacity(0.96),
           body: GestureDetector(
             onTap: () => Navigator.pop(context),
@@ -1004,7 +1006,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 child: Image.network(
                   url,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Icon(
+                  errorBuilder: (_, _, _) => const Icon(
                     Icons.broken_image,
                     color: Colors.white,
                     size: 50,
@@ -1564,7 +1566,7 @@ class _VoiceBubbleState extends State<_VoiceBubble>
           Expanded(
             child: AnimatedBuilder(
               animation: _waveAnim,
-              builder: (_, __) => Row(
+              builder: (_, _) => Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: List.generate(20, (i) {
                   final rand =

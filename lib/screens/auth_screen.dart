@@ -89,9 +89,7 @@ const List<Map<String, dynamic>> _kSports = [
 // CHAMPS CV DYNAMIQUES PAR RÔLE + SPORT
 // ═══════════════════════════════════════════════════════════════
 
-/// Retourne la liste des champs CV selon le rôle et, pour athlete, le sport.
 List<_CvField> _cvFields(String role, String sport) {
-  // ── Champs communs à tous ──
   final common = <_CvField>[
     _CvField(
       key: 'city',
@@ -115,9 +113,6 @@ List<_CvField> _cvFields(String role, String sport) {
   ];
 
   switch (role) {
-    // ──────────────────────────────────────────────────────────
-    // ATHLETE
-    // ──────────────────────────────────────────────────────────
     case 'athlete':
       final base = <_CvField>[
         ...common,
@@ -155,7 +150,6 @@ List<_CvField> _cvFields(String role, String sport) {
           isNumeric: true,
         ),
       ];
-      // Champs spécifiques par sport
       switch (sport) {
         case 'football':
           return [
@@ -325,7 +319,7 @@ List<_CvField> _cvFields(String role, String sport) {
               key: 'ranking',
               label: 'Classement national',
               icon: Icons.leaderboard_outlined,
-              hint: 'Ex : 12ème national',
+              hint: 'Ex : 12',
               isNumeric: true,
             ),
             _CvField(
@@ -480,7 +474,7 @@ List<_CvField> _cvFields(String role, String sport) {
             ...base,
             _CvField(
               key: 'current_club',
-              label: 'Club / Structure actuelle',
+              label: 'Club / Structure',
               icon: Icons.shield_outlined,
               hint: 'Nom de votre club',
             ),
@@ -494,9 +488,6 @@ List<_CvField> _cvFields(String role, String sport) {
           ];
       }
 
-    // ──────────────────────────────────────────────────────────
-    // CLUB
-    // ──────────────────────────────────────────────────────────
     case 'club':
       return [
         ...common,
@@ -548,9 +539,6 @@ List<_CvField> _cvFields(String role, String sport) {
         ),
       ];
 
-    // ──────────────────────────────────────────────────────────
-    // AGENT
-    // ──────────────────────────────────────────────────────────
     case 'agent':
       return [
         ...common,
@@ -570,7 +558,7 @@ List<_CvField> _cvFields(String role, String sport) {
         ),
         _CvField(
           key: 'license_number',
-          label: 'N° de licence FIFA/CAF',
+          label: 'N° licence FIFA/CAF',
           icon: Icons.badge_outlined,
           hint: 'Ex : LIC-CAF-2023-XXXX',
         ),
@@ -604,9 +592,6 @@ List<_CvField> _cvFields(String role, String sport) {
         ),
       ];
 
-    // ──────────────────────────────────────────────────────────
-    // JOURNALISTE
-    // ──────────────────────────────────────────────────────────
     case 'journaliste':
       return [
         ...common,
@@ -668,10 +653,7 @@ List<_CvField> _cvFields(String role, String sport) {
         ),
       ];
 
-    // ──────────────────────────────────────────────────────────
-    // SUPPORTER
-    // ──────────────────────────────────────────────────────────
-    default:
+    default: // supporter
       return [
         ...common,
         _CvField(
@@ -706,7 +688,6 @@ List<_CvField> _cvFields(String role, String sport) {
   }
 }
 
-/// Modèle d'un champ CV
 class _CvField {
   final String key;
   final String label;
@@ -746,26 +727,22 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   final SupabaseClient supabase = Supabase.instance.client;
 
-  // Controllers fixes
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
   final _cpwCtrl = TextEditingController();
 
-  // Controllers CV dynamiques (key → controller)
   final Map<String, TextEditingController> _cvControllers = {};
-  // Valeurs dropdown CV (key → valeur choisie)
   final Map<String, String> _cvDropdowns = {};
 
-  // Animations
   late AnimationController _fadeCtrl, _slideCtrl;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
 
-  int _page = 0; // 0=login 1=register
-  int _step = 0; // étapes inscription : 0=infos, 1=rôle, 2=CV
+  int _page = 0;
+  int _step = 0;
   String _role = 'supporter';
-  String _sport = 'football'; // sport sélectionné dans le CV
+  String _sport = 'football';
   bool _loading = false;
   bool _pwVis = false;
   bool _cpwVis = false;
@@ -804,7 +781,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  // ── Reconstruit les controllers CV quand rôle/sport change ──
   void _rebuildCvControllers() {
     for (final c in _cvControllers.values) c.dispose();
     _cvControllers.clear();
@@ -819,7 +795,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             : '';
       }
     }
-    // Sync sport depuis dropdown si présent
     if (_cvDropdowns.containsKey('sport')) _cvDropdowns['sport'] = _sport;
   }
 
@@ -855,9 +830,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   _RoleOption get _roleOption => _kRoles.firstWhere((r) => r.value == _role);
   bool get _requiresCert => _roleOption.requiresCert;
 
-  // ─────────────────────────────────────────────────────────────
-  // SNACKBAR
-  // ─────────────────────────────────────────────────────────────
   void _msg(String m, {bool ok = true}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -878,6 +850,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
                 ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
               ),
             ),
           ],
@@ -891,9 +865,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // LOGIN
-  // ─────────────────────────────────────────────────────────────
   Future<void> _login() async {
     final email = _emailCtrl.text.trim();
     final pw = _passwordCtrl.text.trim();
@@ -941,15 +912,11 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // REGISTER
-  // ─────────────────────────────────────────────────────────────
   Future<void> _register() async {
     final name = _nameCtrl.text.trim();
     final email = _emailCtrl.text.trim();
     final pw = _passwordCtrl.text.trim();
     final cpw = _cpwCtrl.text.trim();
-
     if (!_agree) {
       _msg("Veuillez accepter les CGU", ok: false);
       return;
@@ -967,7 +934,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       return;
     }
 
-    // Collecte données CV
     final cvData = <String, dynamic>{};
     final fields = _cvFields(_role, _sport);
     for (final f in fields) {
@@ -975,9 +941,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         cvData[f.key] = _cvDropdowns[f.key] ?? '';
       } else {
         final val = _cvControllers[f.key]?.text.trim() ?? '';
-        if (val.isNotEmpty) {
+        if (val.isNotEmpty)
           cvData[f.key] = f.isNumeric ? int.tryParse(val) ?? val : val;
-        }
       }
     }
 
@@ -988,9 +953,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         password: pw,
         data: {'full_name': name, 'role': _role},
       );
-
       if (res.user != null) {
-        // Mise à jour du profil avec les données CV
         await supabase
             .from('users')
             .update({
@@ -999,7 +962,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               ...cvData,
             })
             .eq('id', res.user!.id);
-
         _msg('Compte créé ! Connecte-toi maintenant 🦁');
         _switchPage(0);
         _passwordCtrl.clear();
@@ -1047,7 +1009,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ─── Fond ────────────────────────────────────────────────────
   Widget _buildBg() => Stack(
     children: [
       Positioned(
@@ -1072,56 +1033,80 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     ),
   );
 
-  // ─── Header ──────────────────────────────────────────────────
-  Widget _buildHeader() => Padding(
-    padding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
-    child: Column(
-      children: [
-        Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF3CFF7E), Color(0xFF00C8FF)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+  // ─── Header avec LOGO RÉEL ────────────────────────────────────
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+      child: Column(
+        children: [
+          // Logo de l'application (remplace l'emoji)
+          Container(
+            width: 68,
+            height: 68,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF3CFF7E).withOpacity(0.28),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF3CFF7E).withOpacity(0.32),
-                blurRadius: 18,
-                offset: const Offset(0, 7),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.asset(
+                'assets/logo_fecaapp.png',
+                fit: BoxFit.cover,
+                // Fallback si l'image ne charge pas
+                errorBuilder: (context, error, stackTrace) => Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF3CFF7E), Color(0xFF00C8FF)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: const Center(
+                    child: Text("🦁", style: TextStyle(fontSize: 30)),
+                  ),
+                ),
               ),
-            ],
+            ),
           ),
-          child: const Center(
-            child: Text("🦁", style: TextStyle(fontSize: 28)),
+          const SizedBox(height: 10),
+          // Titre adaptatif
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: const Text(
+              "FECAAPP",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 4,
+              ),
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          "FECAAPP",
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 4,
+          const SizedBox(height: 3),
+          // Sous-titre adaptatif
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              "Le réseau social du sport camerounais",
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.32),
+                fontSize: 11,
+                letterSpacing: 0.4,
+              ),
+            ),
           ),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          "Le réseau social du sport camerounais",
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.32),
-            fontSize: 11,
-            letterSpacing: 0.4,
-          ),
-        ),
-        const SizedBox(height: 20),
-      ],
-    ),
-  );
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
 
   // ─── Toggle ──────────────────────────────────────────────────
   Widget _buildToggle() => Padding(
@@ -1152,13 +1137,16 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             borderRadius: BorderRadius.circular(11),
           ),
           child: Center(
-            child: Text(
-              lbl,
-              style: TextStyle(
-                color: on ? Colors.black : Colors.white38,
-                fontWeight: FontWeight.w900,
-                fontSize: 11,
-                letterSpacing: 1.4,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                lbl,
+                style: TextStyle(
+                  color: on ? Colors.black : Colors.white38,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 11,
+                  letterSpacing: 1.4,
+                ),
               ),
             ),
           ),
@@ -1171,12 +1159,12 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   // LOGIN
   // ═════════════════════════════════════════════════════════════
   Widget _buildLogin() => SingleChildScrollView(
-    padding: const EdgeInsets.fromLTRB(24, 28, 24, 30),
+    padding: const EdgeInsets.fromLTRB(24, 24, 24, 30),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _title("Bon retour parmi les Lions 🦁"),
-        const SizedBox(height: 26),
+        const SizedBox(height: 22),
         _field(
           ctrl: _emailCtrl,
           label: "Adresse email",
@@ -1207,7 +1195,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             ),
           ),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 28),
         _btn(label: "SE CONNECTER", onTap: _login),
         const SizedBox(height: 22),
         _orDiv(),
@@ -1237,20 +1225,21 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     }
   }
 
-  // ─── ÉTAPE 1 — Infos de base ──────────────────────────────────
+  // ─── ÉTAPE 1 ─────────────────────────────────────────────────
   Widget _buildStep1() => SingleChildScrollView(
-    padding: const EdgeInsets.fromLTRB(24, 24, 24, 30),
+    padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _stepBar(1, 3),
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
         _title("Crée ton profil Lion"),
         Text(
           "Entre dans l'arène du sport camerounais",
           style: TextStyle(color: Colors.white.withOpacity(0.33), fontSize: 13),
+          overflow: TextOverflow.ellipsis,
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
         _field(
           ctrl: _nameCtrl,
           label: "Nom complet",
@@ -1283,7 +1272,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
           vis: _cpwVis,
           onVis: () => setState(() => _cpwVis = !_cpwVis),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 28),
         _btn(
           label: "CONTINUER →",
           onTap: () {
@@ -1306,7 +1295,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             _nextStep();
           },
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 18),
         _link(
           text: "Déjà membre ?",
           action: "Se connecter",
@@ -1318,7 +1307,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
   // ─── ÉTAPE 2 — Choix du rôle ──────────────────────────────────
   Widget _buildStep2() => SingleChildScrollView(
-    padding: const EdgeInsets.fromLTRB(24, 24, 24, 30),
+    padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1329,30 +1318,39 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             Expanded(child: _stepBar(2, 3)),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
         _title("Quel est ton rôle ?"),
         Text(
           "Choisis l'identité qui te correspond",
           style: TextStyle(color: Colors.white.withOpacity(0.33), fontSize: 13),
+          overflow: TextOverflow.ellipsis,
         ),
-        const SizedBox(height: 22),
-        // Grille 2 colonnes
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: 1.38,
-          ),
-          itemCount: _kRoles.length,
-          itemBuilder: (_, i) => _roleCard(_kRoles[i]),
+        const SizedBox(height: 20),
+        // Grille 2 colonnes — hauteur fixe suffisante pour le contenu
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final cardWidth = (constraints.maxWidth - 10) / 2;
+            // Hauteur dynamique basée sur la largeur de la carte
+            final cardHeight = cardWidth * 0.72;
+            return Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: _kRoles
+                  .map(
+                    (r) => SizedBox(
+                      width: cardWidth,
+                      height: cardHeight,
+                      child: _roleCard(r),
+                    ),
+                  )
+                  .toList(),
+            );
+          },
         ),
         if (_requiresCert) _certBadge(),
-        const SizedBox(height: 22),
+        const SizedBox(height: 20),
         _agreeCheck(),
-        const SizedBox(height: 22),
+        const SizedBox(height: 20),
         _btn(
           label: "CONTINUER →",
           onTap: () {
@@ -1372,7 +1370,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   Widget _buildStep3() {
     final fields = _cvFields(_role, _sport);
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1383,7 +1381,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               Expanded(child: _stepBar(3, 3)),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           _title("Ton profil sportif"),
           Text(
             "Ces informations valorisent ta présence sur FECAAPP",
@@ -1391,11 +1389,13 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               color: Colors.white.withOpacity(0.33),
               fontSize: 13,
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 6),
           // Badge rôle sélectionné
           Container(
-            margin: const EdgeInsets.only(top: 8, bottom: 20),
+            margin: const EdgeInsets.only(top: 8, bottom: 18),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
               color: const Color(0xFF3CFF7E).withOpacity(0.10),
@@ -1413,12 +1413,15 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                   size: 15,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  _roleOption.label,
-                  style: const TextStyle(
-                    color: Color(0xFF3CFF7E),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
+                Flexible(
+                  child: Text(
+                    _roleOption.label,
+                    style: const TextStyle(
+                      color: Color(0xFF3CFF7E),
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -1441,7 +1444,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
           }),
           // Note facultatif
           Container(
-            margin: const EdgeInsets.only(top: 4, bottom: 26),
+            margin: const EdgeInsets.only(top: 4, bottom: 24),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.03),
@@ -1478,7 +1481,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
   // ─── Dropdown CV ─────────────────────────────────────────────
   Widget _cvDropdownField(_CvField f) {
-    // Si c'est le sélecteur de sport : on met à jour _sport
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Container(
@@ -1491,6 +1493,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         child: DropdownButtonFormField<String>(
           value: _cvDropdowns[f.key] ?? f.dropdownItems.first,
           dropdownColor: const Color(0xFF1A1A1A),
+          isExpanded: true, // ← IMPORTANT : empêche l'overflow
           style: const TextStyle(color: Colors.white, fontSize: 14),
           icon: const Icon(
             Icons.keyboard_arrow_down_rounded,
@@ -1509,7 +1512,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             f.dropdownItems.length,
             (i) => DropdownMenuItem(
               value: f.dropdownItems[i],
-              child: Text(f.dropdownLabels[i]),
+              child: Text(f.dropdownLabels[i], overflow: TextOverflow.ellipsis),
             ),
           ),
           onChanged: (v) {
@@ -1519,7 +1522,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               if (f.key == 'sport') {
                 _sport = v;
                 _rebuildCvControllers();
-                // Remet le sport choisi
                 _cvDropdowns['sport'] = v;
               }
             });
@@ -1529,7 +1531,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ─── Role Card ────────────────────────────────────────────────
+  // ─── Role Card (responsive, sans overflow) ───────────────────
   Widget _roleCard(_RoleOption r) {
     final sel = _role == r.value;
     return GestureDetector(
@@ -1561,7 +1563,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               : [],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(13),
+          padding: const EdgeInsets.all(11),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1570,7 +1572,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(7),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: sel
                           ? const Color(0xFF3CFF7E).withOpacity(0.14)
@@ -1580,7 +1582,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                     child: Icon(
                       r.icon,
                       color: sel ? const Color(0xFF3CFF7E) : Colors.white54,
-                      size: 19,
+                      size: 17,
                     ),
                   ),
                   if (r.requiresCert)
@@ -1608,12 +1610,17 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    r.label,
-                    style: TextStyle(
-                      color: sel ? const Color(0xFF3CFF7E) : Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12,
+                  // FittedBox pour que le label s'adapte à la largeur de la carte
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      r.label,
+                      style: TextStyle(
+                        color: sel ? const Color(0xFF3CFF7E) : Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1680,11 +1687,13 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       t,
       style: const TextStyle(
         color: Colors.white,
-        fontSize: 21,
+        fontSize: 20,
         fontWeight: FontWeight.w900,
         letterSpacing: -0.4,
         height: 1.2,
       ),
+      // Adaptatif : le texte peut passer à la ligne si besoin
+      overflow: TextOverflow.visible,
     ),
   );
 
@@ -1767,6 +1776,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                 vertical: maxLines > 1 ? 14 : 18,
               ),
               floatingLabelBehavior: FloatingLabelBehavior.auto,
+              // Empêche le label de déborder
+              isDense: false,
             ),
           ),
         ),
@@ -1827,13 +1838,16 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                       strokeWidth: 2,
                     ),
                   )
-                : Text(
-                    label,
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 13,
-                      letterSpacing: 1.1,
+                : FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13,
+                        letterSpacing: 1.1,
+                      ),
                     ),
                   ),
           ),
@@ -1841,8 +1855,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       );
 
   Widget _certBadge() => Container(
-    margin: const EdgeInsets.only(top: 16),
-    padding: const EdgeInsets.all(14),
+    margin: const EdgeInsets.only(top: 14),
+    padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       color: Colors.orangeAccent.withOpacity(0.07),
       borderRadius: BorderRadius.circular(15),
@@ -1863,22 +1877,26 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
           ),
         ),
         const SizedBox(width: 12),
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 "Certification professionnelle requise",
                 style: TextStyle(
                   color: Colors.orangeAccent,
                   fontWeight: FontWeight.w800,
-                  fontSize: 12,
+                  fontSize: 11,
                 ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
               ),
-              SizedBox(height: 2),
-              Text(
+              const SizedBox(height: 2),
+              const Text(
                 "Un justificatif officiel sera demandé après inscription",
-                style: TextStyle(color: Colors.white38, fontSize: 10),
+                style: TextStyle(color: Colors.white38, fontSize: 9),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
               ),
             ],
           ),
@@ -1972,23 +1990,25 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   }) => Center(
     child: GestureDetector(
       onTap: onTap,
-      child: RichText(
-        text: TextSpan(
-          style: const TextStyle(fontSize: 13),
-          children: [
-            TextSpan(
-              text: "$text ",
-              style: TextStyle(color: Colors.white.withOpacity(0.33)),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        children: [
+          Text(
+            "$text ",
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.33),
+              fontSize: 13,
             ),
-            TextSpan(
-              text: action,
-              style: const TextStyle(
-                color: Color(0xFF3CFF7E),
-                fontWeight: FontWeight.w800,
-              ),
+          ),
+          Text(
+            action,
+            style: const TextStyle(
+              color: Color(0xFF3CFF7E),
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     ),
   );
@@ -2025,13 +2045,35 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               ),
             ),
             const SizedBox(height: 22),
-            const Text(
-              "Réinitialiser le mot de passe",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 17,
-                fontWeight: FontWeight.w900,
-              ),
+            // Logo dans le bottom sheet aussi
+            Row(
+              children: [
+                SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.asset(
+                      'assets/logo_fecaapp.png',
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          const Text("🦁", style: TextStyle(fontSize: 22)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    "Réinitialiser le mot de passe",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 5),
             Text(

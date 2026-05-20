@@ -2917,7 +2917,9 @@ class _CvItem {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// CAROUSEL MÉDIA
+// MEDIA CARD PROFILE
+// Structure : barre gradient + header + texte + IMAGE ENTIÈRE + actions + vues
+// Texte JAMAIS sur l'image — image en bas — AspectRatio pour image complète
 // ═══════════════════════════════════════════════════════════════
 
 class _ProfileMediaPostCard extends StatefulWidget {
@@ -2960,7 +2962,7 @@ class _ProfileMediaPostCardState extends State<_ProfileMediaPostCard> {
   final PageController _pg = PageController();
   int _cur = 0;
   bool _playing = false;
-  bool _textExpanded = false;
+  bool _expanded = false;
 
   @override
   void dispose() {
@@ -3045,7 +3047,7 @@ class _ProfileMediaPostCardState extends State<_ProfileMediaPostCard> {
             ),
           ),
 
-          // ── Header (avatar + nom + badge + date + menu) ──
+          // ── Header ──
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
             child: Row(
@@ -3145,19 +3147,16 @@ class _ProfileMediaPostCardState extends State<_ProfileMediaPostCard> {
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
               child: GestureDetector(
                 onTap: hasLong
-                    ? () => setState(() => _textExpanded = !_textExpanded)
+                    ? () => setState(() => _expanded = !_expanded)
                     : null,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _richText(
-                      widget.content,
-                      maxLines: _textExpanded ? null : 2,
-                    ),
+                    _richText(widget.content, maxLines: _expanded ? null : 2),
                     if (hasLong) ...[
                       const SizedBox(height: 4),
                       Text(
-                        _textExpanded ? 'voir moins' : 'voir plus',
+                        _expanded ? 'voir moins' : 'voir plus',
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.38),
                           fontSize: 12,
@@ -3172,11 +3171,11 @@ class _ProfileMediaPostCardState extends State<_ProfileMediaPostCard> {
 
           const SizedBox(height: 10),
 
-          // ── Media (image/vidéo/carousel) ──
-          SizedBox(
-            height: 300,
-            child: widget.postType == 'VIDEO'
-                ? (_playing
+          // ── IMAGE ENTIÈRE (AspectRatio 4/3) ──
+          widget.postType == 'VIDEO'
+              ? AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: _playing
                       ? VideoPostPlayer(videoUrl: widget.mediaUrls[0])
                       : GestureDetector(
                           onTap: () => setState(() => _playing = true),
@@ -3203,10 +3202,13 @@ class _ProfileMediaPostCardState extends State<_ProfileMediaPostCard> {
                               ),
                             ),
                           ),
-                        ))
-                : Stack(
-                    children: [
-                      PageView.builder(
+                        ),
+                )
+              : Stack(
+                  children: [
+                    AspectRatio(
+                      aspectRatio: 4 / 3,
+                      child: PageView.builder(
                         controller: _pg,
                         itemCount: total,
                         onPageChanged: (i) => setState(() => _cur = i),
@@ -3241,145 +3243,139 @@ class _ProfileMediaPostCardState extends State<_ProfileMediaPostCard> {
                           ),
                         ),
                       ),
-                      // Compteur
-                      if (total > 1)
-                        Positioned(
-                          top: 10,
-                          right: 10,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.60),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.12),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 5,
-                                  height: 5,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFF3CFF7E),
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  '${_cur + 1} / $total',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ],
+                    ),
+                    if (total > 1)
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.12),
                             ),
                           ),
-                        ),
-                      // Nav prev
-                      if (total > 1 && _cur > 0)
-                        Positioned(
-                          left: 8,
-                          top: 0,
-                          bottom: 0,
-                          child: Center(
-                            child: GestureDetector(
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                _pg.previousPage(
-                                  duration: const Duration(milliseconds: 320),
-                                  curve: Curves.easeInOutCubic,
-                                );
-                              },
-                              child: Container(
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.5),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white.withOpacity(0.12),
-                                  ),
-                                ),
-                                child: const Icon(
-                                  Icons.chevron_left_rounded,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      // Nav next
-                      if (total > 1 && _cur < total - 1)
-                        Positioned(
-                          right: 8,
-                          top: 0,
-                          bottom: 0,
-                          child: Center(
-                            child: GestureDetector(
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                _pg.nextPage(
-                                  duration: const Duration(milliseconds: 320),
-                                  curve: Curves.easeInOutCubic,
-                                );
-                              },
-                              child: Container(
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.5),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white.withOpacity(0.12),
-                                  ),
-                                ),
-                                child: const Icon(
-                                  Icons.chevron_right_rounded,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      // Dots
-                      if (total > 1 && total <= 10)
-                        Positioned(
-                          bottom: 10,
-                          left: 0,
-                          right: 0,
                           child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(total, (i) {
-                              final on = i == _cur;
-                              return AnimatedContainer(
-                                duration: const Duration(milliseconds: 280),
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 3,
-                                ),
-                                width: on ? 16 : 5,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 5,
                                 height: 5,
-                                decoration: BoxDecoration(
-                                  color: on
-                                      ? Colors.white
-                                      : Colors.white.withOpacity(0.32),
-                                  borderRadius: BorderRadius.circular(10),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF3CFF7E),
+                                  shape: BoxShape.circle,
                                 ),
-                              );
-                            }),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                '${_cur + 1} / $total',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                    ],
-                  ),
-          ),
+                      ),
+                    if (total > 1 && _cur > 0)
+                      Positioned(
+                        left: 8,
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: GestureDetector(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              _pg.previousPage(
+                                duration: const Duration(milliseconds: 320),
+                                curve: Curves.easeInOutCubic,
+                              );
+                            },
+                            child: Container(
+                              width: 30,
+                              height: 30,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.5),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.12),
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.chevron_left_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (total > 1 && _cur < total - 1)
+                      Positioned(
+                        right: 8,
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: GestureDetector(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              _pg.nextPage(
+                                duration: const Duration(milliseconds: 320),
+                                curve: Curves.easeInOutCubic,
+                              );
+                            },
+                            child: Container(
+                              width: 30,
+                              height: 30,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.5),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.12),
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.chevron_right_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (total > 1 && total <= 10)
+                      Positioned(
+                        bottom: 10,
+                        left: 0,
+                        right: 0,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(
+                            total,
+                            (i) => AnimatedContainer(
+                              duration: const Duration(milliseconds: 280),
+                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                              width: i == _cur ? 16 : 5,
+                              height: 5,
+                              decoration: BoxDecoration(
+                                color: i == _cur
+                                    ? Colors.white
+                                    : Colors.white.withOpacity(0.32),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
 
           // ── Thumbnail strip ──
           if (total > 1 && widget.postType != 'VIDEO') _strip(total),
@@ -3387,7 +3383,7 @@ class _ProfileMediaPostCardState extends State<_ProfileMediaPostCard> {
           // ── Divider ──
           Divider(color: Colors.white.withOpacity(0.06), height: 1),
 
-          // ── Actions bar : [❤️][💬][🔁] ··· [👁 vues] ──
+          // ── Actions + vues ──
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
             child: Row(
@@ -3486,9 +3482,9 @@ class _ProfileMediaPostCardState extends State<_ProfileMediaPostCard> {
       padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
       child: Row(
         children: [
-          ...List.generate(show, (i) {
-            final on = i == _cur;
-            return GestureDetector(
+          ...List.generate(
+            show,
+            (i) => GestureDetector(
               onTap: () {
                 HapticFeedback.selectionClick();
                 _pg.animateToPage(
@@ -3505,10 +3501,10 @@ class _ProfileMediaPostCardState extends State<_ProfileMediaPostCard> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(7),
                   border: Border.all(
-                    color: on
+                    color: i == _cur
                         ? Colors.white.withOpacity(0.72)
                         : Colors.white.withOpacity(0.11),
-                    width: on ? 1.5 : 1,
+                    width: i == _cur ? 1.5 : 1,
                   ),
                 ),
                 clipBehavior: Clip.antiAlias,
@@ -3519,8 +3515,8 @@ class _ProfileMediaPostCardState extends State<_ProfileMediaPostCard> {
                       Container(color: const Color(0xFF1A1A1A)),
                 ),
               ),
-            );
-          }),
+            ),
+          ),
           if (over > 0)
             Container(
               width: 34,

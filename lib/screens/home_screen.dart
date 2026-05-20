@@ -3,7 +3,6 @@ import 'package:flutter/rendering.dart';
 import 'dart:async';
 import 'dart:ui' as java_ui;
 import 'package:flutter/services.dart';
-
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../models/user.dart';
 import '../services/social_service.dart';
@@ -24,10 +23,6 @@ import 'finance_education_screen.dart';
 import 'saga_kings_screen.dart';
 import '../widgets/video_post_player.dart';
 import 'fecaai_screen.dart';
-
-// ═══════════════════════════════════════════════════════════════
-// MODÈLE COMMENTAIRE (partagé Home + Profile)
-// ═══════════════════════════════════════════════════════════════
 
 class CommentItem {
   final String id;
@@ -58,29 +53,22 @@ class CommentItem {
     this.replies = const [],
   });
 
-  factory CommentItem.fromMap(Map<String, dynamic> m) {
-    return CommentItem(
-      id: m['id']?.toString() ?? '',
-      authorId: m['author_id'] ?? '',
-      authorName: m['author_name'] ?? 'Lion anonyme',
-      authorImg: m['author_img_url'],
-      isCertified: m['is_certified'] == true,
-      content: m['content'] ?? '',
-      createdAt: DateTime.tryParse(m['created_at'] ?? '') ?? DateTime.now(),
-      likesCount: m['likes_count'] ?? 0,
-      isLikedByMe: m['is_liked_by_me'] ?? false,
-    );
-  }
+  factory CommentItem.fromMap(Map<String, dynamic> m) => CommentItem(
+    id: m['id']?.toString() ?? '',
+    authorId: m['author_id'] ?? '',
+    authorName: m['author_name'] ?? 'Lion anonyme',
+    authorImg: m['author_img_url'],
+    isCertified: m['is_certified'] == true,
+    content: m['content'] ?? '',
+    createdAt: DateTime.tryParse(m['created_at'] ?? '') ?? DateTime.now(),
+    likesCount: m['likes_count'] ?? 0,
+    isLikedByMe: m['is_liked_by_me'] ?? false,
+  );
 }
-
-// ═══════════════════════════════════════════════════════════════
-// HOME SCREEN
-// ═══════════════════════════════════════════════════════════════
 
 class HomeScreen extends StatefulWidget {
   final User user;
   const HomeScreen({super.key, required this.user});
-
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -89,12 +77,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
   final SocialService _socialService = SocialService();
   final Color goldColor = const Color(0xFFD4AF37);
-
   List<dynamic> _posts = [];
   List<dynamic> _groupedStatuses = [];
   bool _isLoading = true;
   int _currentBottomIndex = 0;
-
   bool _isBottomBarVisible = true;
   bool _showLikeOverlay = false;
   int _unreadCount = 0;
@@ -110,7 +96,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _loadData();
     _setupRealtime();
     _listenUnread();
-
     _scrollController.addListener(() {
       if (_scrollController.position.userScrollDirection ==
           ScrollDirection.reverse) {
@@ -120,7 +105,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         if (!_isBottomBarVisible) setState(() => _isBottomBarVisible = true);
       }
     });
-
     _likeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
@@ -143,11 +127,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         );
   }
 
-  void _setupRealtime() {
-    _socialService.subscribeToPosts(() {
-      if (mounted) _loadData();
-    });
-  }
+  void _setupRealtime() => _socialService.subscribeToPosts(() {
+    if (mounted) _loadData();
+  });
 
   void _listenUnread() {
     final supabase = Supabase.instance.client;
@@ -209,9 +191,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         final Map<String, dynamic> uniqueUsers = {};
         for (var s in allStatuses) {
           final userId = s['author_id'] ?? s['user_id'];
-          if (userId != null && !uniqueUsers.containsKey(userId)) {
+          if (userId != null && !uniqueUsers.containsKey(userId))
             uniqueUsers[userId] = s;
-          }
         }
         setState(() {
           _posts = results[0];
@@ -224,30 +205,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
-  String _timeAgo(String dateTimeStr) {
+  String _timeAgo(String s) {
     try {
-      final postDate = DateTime.parse(dateTimeStr);
-      final diff = DateTime.now().difference(postDate);
+      final d = DateTime.parse(s);
+      final diff = DateTime.now().difference(d);
       if (diff.inMinutes < 1) return "À l'instant";
       if (diff.inMinutes < 60) return 'il y a ${diff.inMinutes} min';
       if (diff.inHours < 24) return 'il y a ${diff.inHours} h';
-      return '${postDate.day}/${postDate.month}/${postDate.year}';
-    } catch (e) {
+      return '${d.day}/${d.month}/${d.year}';
+    } catch (_) {
       return 'Récemment';
     }
   }
 
   List<String> _getMediaUrls(dynamic post) {
     final raw = post['media_urls'];
-    if (raw is List && raw.isNotEmpty) {
+    if (raw is List && raw.isNotEmpty)
       return raw.map((e) => e.toString()).where((u) => u.isNotEmpty).toList();
-    }
     final single = post['media_url']?.toString() ?? '';
     if (single.isNotEmpty) return [single];
     return [];
   }
 
-  String _formatCount(int n) {
+  String _fmt(int n) {
     if (n == 0) return '0';
     if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
     if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
@@ -258,15 +238,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void dispose() {
     _scrollController.dispose();
     _likeController.dispose();
-    if (_unreadChannel != null) {
+    if (_unreadChannel != null)
       Supabase.instance.client.removeChannel(_unreadChannel!);
-    }
     super.dispose();
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // ACTIONS
-  // ─────────────────────────────────────────────────────────────
+  Future<void> _recordView(String postId) async {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) return;
+    try {
+      await Supabase.instance.client.rpc(
+        'record_post_view',
+        params: {'p_post_id': postId, 'p_user_id': uid},
+      );
+    } catch (_) {}
+  }
 
   Future<void> _toggleLike(dynamic post) async {
     final bool isLiked = post['is_liked_by_me'] ?? false;
@@ -278,7 +264,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
     try {
       await _socialService.toggleLike(post['id'].toString(), widget.user.id);
-    } catch (e) {
+    } catch (_) {
       _loadData();
     }
   }
@@ -288,7 +274,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     try {
       await _socialService.repost(widget.user.id, post);
       await _loadData();
-    } catch (e) {
+    } catch (_) {
       _loadData();
     }
   }
@@ -303,8 +289,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
   }
 
-  void _showZoomedImage(String imageUrl) {
-    if (imageUrl.isEmpty) return;
+  void _showZoomedImage(String url) {
+    if (url.isEmpty) return;
     Navigator.push(
       context,
       PageRouteBuilder(
@@ -316,13 +302,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             onTap: () => Navigator.pop(context),
             child: Center(
               child: Hero(
-                tag: imageUrl,
+                tag: url,
                 child: InteractiveViewer(
                   panEnabled: true,
                   minScale: 0.5,
                   maxScale: 4,
                   child: Image.network(
-                    imageUrl,
+                    url,
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) => const Icon(
                       Icons.broken_image,
@@ -361,10 +347,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     ).then((_) => _loadData());
   }
-
-  // ─────────────────────────────────────────────────────────────
-  // APP BAR
-  // ─────────────────────────────────────────────────────────────
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
@@ -442,13 +424,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         color: Colors.redAccent,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: Colors.black, width: 1.5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.redAccent.withOpacity(0.5),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
                       ),
                       child: Text(
                         _unreadCount > 99 ? '99+' : '$_unreadCount',
@@ -469,9 +444,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         GestureDetector(
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => ProfileScreen(user: widget.user),
-            ),
+            MaterialPageRoute(builder: (_) => ProfileScreen(user: widget.user)),
           ).then((_) => _loadData()),
           child: Padding(
             padding: const EdgeInsets.only(right: 15, left: 8),
@@ -505,12 +478,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // DRAWER
-  // ─────────────────────────────────────────────────────────────
-
   Widget _buildDrawerHeader() {
-    final bool isCertified = widget.user.isCertified;
     return Container(
       padding: const EdgeInsets.fromLTRB(25, 60, 25, 25),
       decoration: const BoxDecoration(
@@ -551,8 +519,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               const SizedBox(width: 8),
               Icon(
-                isCertified ? Icons.verified : Icons.stars_rounded,
-                color: isCertified ? Colors.blueAccent : Colors.amber,
+                widget.user.isCertified ? Icons.verified : Icons.stars_rounded,
+                color: widget.user.isCertified
+                    ? Colors.blueAccent
+                    : Colors.amber,
                 size: 24,
               ),
             ],
@@ -584,14 +554,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             Icons.person_outline_rounded,
             'Mon Profil',
             Colors.white,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProfileScreen(user: widget.user),
-                ),
-              ).then((_) => _loadData());
-            },
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ProfileScreen(user: widget.user),
+              ),
+            ).then((_) => _loadData()),
           ),
           _drawerTile(
             Icons.smart_toy_outlined,
@@ -601,7 +569,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const FecaAIScreen()),
+                MaterialPageRoute(builder: (_) => const FecaAIScreen()),
               );
             },
           ),
@@ -609,75 +577,57 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             Icons.account_balance_outlined,
             'Musée du Foot',
             Colors.orangeAccent,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const MuseumScreen()),
-              );
-            },
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MuseumScreen()),
+            ),
           ),
           _drawerTile(
             Icons.history_edu_rounded,
             'Saga des Rois',
             Colors.amber,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SagaKingsScreen(),
-                ),
-              );
-            },
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SagaKingsScreen()),
+            ),
           ),
           _drawerTile(
             Icons.star_outline_rounded,
             'Talents',
             Colors.greenAccent,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => TalentsScreen(user: widget.user),
-                ),
-              );
-            },
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TalentsScreen(user: widget.user),
+              ),
+            ),
           ),
           _drawerTile(
             Icons.leaderboard_outlined,
             'Classements',
             Colors.white,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const StandingsScreen(),
-                ),
-              );
-            },
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const StandingsScreen()),
+            ),
           ),
           _drawerTile(
             Icons.sports_soccer_rounded,
             'Championnats Locaux',
             Colors.white,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const LocalLeagueScreen(),
-                ),
-              );
-            },
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const LocalLeagueScreen()),
+            ),
           ),
           _drawerTile(
             Icons.rate_review_outlined,
             'Avis & Critiques',
             Colors.blueAccent,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AvisScreen()),
-              );
-            },
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AvisScreen()),
+            ),
           ),
           _buildStyledDivider('ACCÈS PREMIUM'),
           Container(
@@ -693,40 +643,34 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   Icons.monetization_on_outlined,
                   'Éducation Financière',
                   goldColor,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const FinanceEducationScreen(),
-                      ),
-                    );
-                  },
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FinanceEducationScreen(),
+                    ),
+                  ),
                 ),
                 _drawerTile(
                   Icons.workspace_premium_outlined,
                   'Abonnement Premium',
                   goldColor,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const PremiumSubscriptionScreen(),
-                      ),
-                    );
-                  },
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PremiumSubscriptionScreen(),
+                    ),
+                  ),
                 ),
                 _drawerTile(
                   Icons.confirmation_num_outlined,
                   'Paiement Billets',
                   goldColor,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const TicketsPremiumScreen(),
-                      ),
-                    );
-                  },
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const TicketsPremiumScreen(),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -736,32 +680,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             Icons.settings_outlined,
             'Paramètres',
             Colors.white38,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
-              );
-            },
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
           ),
           _drawerTile(
             Icons.logout_rounded,
             'Déconnexion',
             Colors.redAccent,
-            onTap: () async {
-              Navigator.of(
-                context,
-              ).pushNamedAndRemoveUntil('/login', (route) => false);
-            },
+            onTap: () => Navigator.of(
+              context,
+            ).pushNamedAndRemoveUntil('/login', (route) => false),
           ),
           const SizedBox(height: 30),
         ],
       ),
     );
   }
-
-  // ─────────────────────────────────────────────────────────────
-  // BUILD PRINCIPAL
-  // ─────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -788,6 +724,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     itemBuilder: (context, index) {
                       if (index == 0) return _buildStoriesSection();
                       final post = _posts[index - 1];
+                      // Enregistrer la vue silencieusement
+                      WidgetsBinding.instance.addPostFrameCallback(
+                        (_) => _recordView(post['id'].toString()),
+                      );
                       return RepaintBoundary(
                         child: _buildFeedItem(post: post, index: index - 1),
                       );
@@ -807,10 +747,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     );
   }
-
-  // ─────────────────────────────────────────────────────────────
-  // STORIES
-  // ─────────────────────────────────────────────────────────────
 
   Widget _buildStoriesSection() {
     return Container(
@@ -951,7 +887,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
+      builder: (_) => Container(
         padding: const EdgeInsets.all(20),
         decoration: const BoxDecoration(
           color: Color(0xFF121212),
@@ -1016,8 +952,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) =>
-                CreateContentScreen(type: type, user: widget.user),
+            builder: (_) => CreateContentScreen(type: type, user: widget.user),
           ),
         ).then((_) => _loadData());
       },
@@ -1045,10 +980,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     );
   }
-
-  // ─────────────────────────────────────────────────────────────
-  // FEED
-  // ─────────────────────────────────────────────────────────────
 
   Widget _buildFeedItem({required dynamic post, required int index}) {
     final userData = post['users'];
@@ -1099,19 +1030,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           GestureDetector(
             onDoubleTap: () => _handleDoubleTap(post),
             child: postType == 'TEXT' || mediaUrls.isEmpty
-                ? _buildTextPostCard(
+                ? _HomeTextCard(
                     post: post,
                     content: content,
-                    authorName: authorName,
-                    authorImg: authorImg,
-                    isAuthorCertified: isAuthorCertified,
-                    createdAt: createdAt,
+                    header: _buildPostHeader(
+                      authorName: authorName,
+                      authorImg: authorImg,
+                      isAuthorCertified: isAuthorCertified,
+                      createdAt: createdAt,
+                      post: post,
+                    ),
                     isLiked: isLiked,
                     likesCount: likesCount,
                     commentCount: commentCount,
                     repostCount: repostCount,
+                    onLike: () => _toggleLike(post),
+                    onComment: () => _showCommentsModal(post),
+                    onRepost: () => _handleRepost(post),
+                    fmt: _fmt,
                   )
-                : _buildMediaPostCard(
+                : _HomeMediaCard(
                     post: post,
                     mediaUrls: mediaUrls,
                     postType: postType,
@@ -1124,92 +1062,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     likesCount: likesCount,
                     commentCount: commentCount,
                     repostCount: repostCount,
+                    timeAgo: _timeAgo,
+                    onImageTap: _showZoomedImage,
+                    onLike: () => _toggleLike(post),
+                    onComment: () => _showCommentsModal(post),
+                    onRepost: () => _handleRepost(post),
+                    onOptions: () => _showPostOptions(post),
+                    fmt: _fmt,
                   ),
           ),
         ],
       ),
     );
   }
-
-  // ─────────────────────────────────────────────────────────────
-  // TEXT POST CARD — header + texte (2L max + voir plus) + divider + actions + vues
-  // ─────────────────────────────────────────────────────────────
-
-  Widget _buildTextPostCard({
-    required dynamic post,
-    required String content,
-    required String authorName,
-    required String? authorImg,
-    required bool isAuthorCertified,
-    required String createdAt,
-    required bool isLiked,
-    required int likesCount,
-    required int commentCount,
-    required int repostCount,
-  }) {
-    return _ExpandableHomePostCard(
-      post: post,
-      content: content,
-      isLiked: isLiked,
-      likesCount: likesCount,
-      commentCount: commentCount,
-      repostCount: repostCount,
-      header: _buildPostHeader(
-        authorName: authorName,
-        authorImg: authorImg,
-        isAuthorCertified: isAuthorCertified,
-        createdAt: createdAt,
-        post: post,
-      ),
-      onLike: () => _toggleLike(post),
-      onComment: () => _showCommentsModal(post),
-      onRepost: () => _handleRepost(post),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────
-  // MEDIA POST CARD
-  // ─────────────────────────────────────────────────────────────
-
-  Widget _buildMediaPostCard({
-    required dynamic post,
-    required List<String> mediaUrls,
-    required String postType,
-    required String content,
-    required String authorName,
-    required String? authorImg,
-    required bool isAuthorCertified,
-    required String createdAt,
-    required bool isLiked,
-    required int likesCount,
-    required int commentCount,
-    required int repostCount,
-  }) {
-    return _MediaPostCard(
-      post: post,
-      mediaUrls: mediaUrls,
-      postType: postType,
-      content: content,
-      authorName: authorName,
-      authorImg: authorImg,
-      isAuthorCertified: isAuthorCertified,
-      createdAt: createdAt,
-      isLiked: isLiked,
-      likesCount: likesCount,
-      commentCount: commentCount,
-      repostCount: repostCount,
-      timeAgo: _timeAgo,
-      onImageTap: _showZoomedImage,
-      onLike: () => _toggleLike(post),
-      onComment: () => _showCommentsModal(post),
-      onRepost: () => _handleRepost(post),
-      onOptions: () => _showPostOptions(post),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────
-  // POST HEADER (partagé text + media)
-  // ─────────────────────────────────────────────────────────────
 
   Widget _buildPostHeader({
     required String authorName,
@@ -1294,10 +1159,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // LIKE HEART OVERLAY
-  // ─────────────────────────────────────────────────────────────
-
   Widget _buildLikeHeart() => FadeTransition(
     opacity: _opacity,
     child: SlideTransition(
@@ -1308,10 +1169,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           alignment: Alignment.center,
           children: [
             ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
+              shaderCallback: (b) => const LinearGradient(
                 colors: [Colors.green, Colors.red, Colors.yellow],
                 stops: [0.33, 0.33, 0.66],
-              ).createShader(bounds),
+              ).createShader(b),
               child: const Icon(Icons.favorite, color: Colors.white, size: 140),
             ),
             const Positioned(
@@ -1323,10 +1184,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     ),
   );
-
-  // ─────────────────────────────────────────────────────────────
-  // COMMENTAIRES
-  // ─────────────────────────────────────────────────────────────
 
   void _showCommentsModal(dynamic post) {
     showModalBottomSheet(
@@ -1392,10 +1249,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     );
   }
-
-  // ─────────────────────────────────────────────────────────────
-  // BOTTOM NAV
-  // ─────────────────────────────────────────────────────────────
 
   Widget _buildBottomNavBar() {
     return AnimatedSlide(
@@ -1471,43 +1324,36 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     bool isActive,
     VoidCallback onTap, {
     Color? specialColor,
-  }) {
-    return IconButton(
-      icon: Icon(
-        icon,
-        color: isActive ? (specialColor ?? Colors.greenAccent) : Colors.white38,
-        size: 28,
-      ),
-      onPressed: onTap,
-    );
-  }
+  }) => IconButton(
+    icon: Icon(
+      icon,
+      color: isActive ? (specialColor ?? Colors.greenAccent) : Colors.white38,
+      size: 28,
+    ),
+    onPressed: onTap,
+  );
 
-  // ─────────────────────────────────────────────────────────────
-  // HELPERS UI
-  // ─────────────────────────────────────────────────────────────
-
-  Widget _drawerTile(IconData i, String t, Color c, {VoidCallback? onTap}) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: c.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10),
+  Widget _drawerTile(IconData i, String t, Color c, {VoidCallback? onTap}) =>
+      ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: c.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(i, color: c, size: 22),
         ),
-        child: Icon(i, color: c, size: 22),
-      ),
-      title: Text(
-        t,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
+        title: Text(
+          t,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-      ),
-      onTap: onTap,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-    );
-  }
+        onTap: onTap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      );
 
   Widget _buildStyledDivider(String l) => Padding(
     padding: const EdgeInsets.fromLTRB(25, 30, 25, 10),
@@ -1532,19 +1378,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// CARTE TEXTE AVEC "VOIR PLUS" ET VUES
-// Structure : header → texte (2L + voir plus) → divider → [❤️][💬][🔁] ··· [👁 vues]
+// TEXT CARD
+// Structure: barre gradient + header + texte + divider + actions + vues
 // ═══════════════════════════════════════════════════════════════
-
-class _ExpandableHomePostCard extends StatefulWidget {
+class _HomeTextCard extends StatefulWidget {
   final dynamic post;
   final String content;
   final Widget header;
   final bool isLiked;
   final int likesCount, commentCount, repostCount;
   final VoidCallback onLike, onComment, onRepost;
+  final String Function(int) fmt;
 
-  const _ExpandableHomePostCard({
+  const _HomeTextCard({
     required this.post,
     required this.content,
     required this.header,
@@ -1555,28 +1401,57 @@ class _ExpandableHomePostCard extends StatefulWidget {
     required this.onLike,
     required this.onComment,
     required this.onRepost,
+    required this.fmt,
   });
 
   @override
-  State<_ExpandableHomePostCard> createState() =>
-      _ExpandableHomePostCardState();
+  State<_HomeTextCard> createState() => _HomeTextCardState();
 }
 
-class _ExpandableHomePostCardState extends State<_ExpandableHomePostCard> {
+class _HomeTextCardState extends State<_HomeTextCard> {
   bool _expanded = false;
 
-  String _fmt(int n) {
-    if (n == 0) return '0';
-    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
-    return '$n';
+  Widget _richText(String content, {int? maxLines}) {
+    final words = content.split(' ');
+    final spans = <TextSpan>[];
+    for (int i = 0; i < words.length; i++) {
+      final w = words[i];
+      final isLast = i == words.length - 1;
+      if (w.startsWith('#') || w.startsWith('@')) {
+        spans.add(
+          TextSpan(
+            text: w + (isLast ? '' : ' '),
+            style: TextStyle(
+              color: w.startsWith('#')
+                  ? const Color(0xFF3CFF7E)
+                  : Colors.blueAccent,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        );
+      } else {
+        spans.add(TextSpan(text: w + (isLast ? '' : ' ')));
+      }
+    }
+    return RichText(
+      maxLines: maxLines,
+      overflow: maxLines != null ? TextOverflow.ellipsis : TextOverflow.clip,
+      text: TextSpan(
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+          height: 1.6,
+        ),
+        children: spans,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final bool hasLong = widget.content.length > 120;
     final int views = widget.post['views_count'] ?? 0;
-
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF0D0D0D),
@@ -1594,7 +1469,6 @@ class _ExpandableHomePostCardState extends State<_ExpandableHomePostCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Barre gradient top
           Container(
             height: 2.5,
             decoration: const BoxDecoration(
@@ -1603,16 +1477,12 @@ class _ExpandableHomePostCardState extends State<_ExpandableHomePostCard> {
               ),
             ),
           ),
-
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header auteur
                 widget.header,
-
-                // Texte en haut — 2 lignes max avec voir plus
                 if (widget.content.isNotEmpty) ...[
                   const SizedBox(height: 14),
                   GestureDetector(
@@ -1644,48 +1514,37 @@ class _ExpandableHomePostCardState extends State<_ExpandableHomePostCard> {
               ],
             ),
           ),
-
           const SizedBox(height: 14),
           Divider(color: Colors.white.withOpacity(0.06), height: 1),
-
-          // Actions + vues
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
             child: Row(
               children: [
-                // Like
-                _actionPill(
+                _pill(
                   icon: widget.isLiked
                       ? Icons.favorite_rounded
                       : Icons.favorite_border_rounded,
-                  label: _fmt(widget.likesCount),
+                  label: widget.fmt(widget.likesCount),
                   color: widget.isLiked ? Colors.red : Colors.white,
                   onTap: widget.onLike,
                 ),
                 const SizedBox(width: 8),
-
-                // Commentaire
-                _actionPill(
+                _pill(
                   icon: Icons.chat_bubble_outline_rounded,
-                  label: _fmt(widget.commentCount),
+                  label: widget.fmt(widget.commentCount),
                   color: Colors.white,
                   onTap: widget.onComment,
                 ),
                 const SizedBox(width: 8),
-
-                // Repost
-                _actionPill(
+                _pill(
                   icon: Icons.repeat_rounded,
-                  label: _fmt(widget.repostCount),
+                  label: widget.fmt(widget.repostCount),
                   color: widget.repostCount > 0
                       ? const Color(0xFF3CFF7E)
                       : Colors.white,
                   onTap: widget.onRepost,
                 ),
-
                 const Spacer(),
-
-                // Vues — sobre, visible par tous
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -1696,7 +1555,7 @@ class _ExpandableHomePostCardState extends State<_ExpandableHomePostCard> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      _fmt(views),
+                      widget.fmt(views),
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.3),
                         fontSize: 12,
@@ -1713,109 +1572,62 @@ class _ExpandableHomePostCardState extends State<_ExpandableHomePostCard> {
     );
   }
 
-  Widget _actionPill({
+  Widget _pill({
     required IconData icon,
     required String label,
     required Color color,
     required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.06),
-          borderRadius: BorderRadius.circular(50),
-          border: Border.all(color: Colors.white.withOpacity(0.07)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 17),
-            if (label != '0') ...[
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
+  }) => GestureDetector(
+    onTap: () {
+      HapticFeedback.lightImpact();
+      onTap();
+    },
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(50),
+        border: Border.all(color: Colors.white.withOpacity(0.07)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 17),
+          if (label != '0') ...[
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
               ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _richText(String content, {int? maxLines}) {
-    final words = content.split(' ');
-    final spans = <TextSpan>[];
-    for (int i = 0; i < words.length; i++) {
-      final word = words[i];
-      final bool isLast = i == words.length - 1;
-      if (word.startsWith('#') || word.startsWith('@')) {
-        spans.add(
-          TextSpan(
-            text: word + (isLast ? '' : ' '),
-            style: TextStyle(
-              color: word.startsWith('#')
-                  ? const Color(0xFF3CFF7E)
-                  : Colors.blueAccent,
-              fontWeight: FontWeight.w800,
             ),
-          ),
-        );
-      } else {
-        spans.add(TextSpan(text: word + (isLast ? '' : ' ')));
-      }
-    }
-    return RichText(
-      maxLines: maxLines,
-      overflow: maxLines != null ? TextOverflow.ellipsis : TextOverflow.clip,
-      text: TextSpan(
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 17,
-          fontWeight: FontWeight.w600,
-          height: 1.6,
-        ),
-        children: spans,
+          ],
+        ],
       ),
-    );
-  }
+    ),
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════
-// MEDIA POST CARD
-// Structure : header + texte (2L en haut) + media + actions + vues
+// MEDIA CARD
+// Structure: barre gradient + header + texte + IMAGE ENTIÈRE + actions + vues
+// Texte JAMAIS sur l'image — image en bas — AspectRatio pour image complète
 // ═══════════════════════════════════════════════════════════════
-
-class _MediaPostCard extends StatefulWidget {
+class _HomeMediaCard extends StatefulWidget {
   final dynamic post;
   final List<String> mediaUrls;
-  final String postType;
-  final String content;
-  final String authorName;
+  final String postType, content, authorName, createdAt;
   final String? authorImg;
-  final bool isAuthorCertified;
-  final String createdAt;
-  final bool isLiked;
-  final int likesCount;
-  final int commentCount;
-  final int repostCount;
+  final bool isAuthorCertified, isLiked;
+  final int likesCount, commentCount, repostCount;
   final String Function(String) timeAgo;
   final Function(String) onImageTap;
-  final VoidCallback onLike;
-  final VoidCallback onComment;
-  final VoidCallback onRepost;
-  final VoidCallback onOptions;
+  final VoidCallback onLike, onComment, onRepost, onOptions;
+  final String Function(int) fmt;
 
-  const _MediaPostCard({
+  const _HomeMediaCard({
     required this.post,
     required this.mediaUrls,
     required this.postType,
@@ -1834,471 +1646,182 @@ class _MediaPostCard extends StatefulWidget {
     required this.onComment,
     required this.onRepost,
     required this.onOptions,
+    required this.fmt,
   });
 
   @override
-  State<_MediaPostCard> createState() => _MediaPostCardState();
+  State<_HomeMediaCard> createState() => _HomeMediaCardState();
 }
 
-class _MediaPostCardState extends State<_MediaPostCard> {
-  final PageController _pageController = PageController();
-  int _currentPage = 0;
-  bool _isPlayingVideo = false;
+class _HomeMediaCardState extends State<_HomeMediaCard> {
+  final PageController _pc = PageController();
+  int _cur = 0;
+  bool _playing = false;
+  bool _expanded = false;
 
   @override
   void dispose() {
-    _pageController.dispose();
+    _pc.dispose();
     super.dispose();
   }
 
-  String _fmt(int n) {
-    if (n == 0) return '0';
-    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
-    return '$n';
+  Widget _richText(String content, {int? maxLines}) {
+    final words = content.split(' ');
+    final spans = <TextSpan>[];
+    for (int i = 0; i < words.length; i++) {
+      final w = words[i];
+      final isLast = i == words.length - 1;
+      if (w.startsWith('#') || w.startsWith('@')) {
+        spans.add(
+          TextSpan(
+            text: w + (isLast ? '' : ' '),
+            style: TextStyle(
+              color: w.startsWith('#')
+                  ? const Color(0xFF3CFF7E)
+                  : Colors.blueAccent,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        );
+      } else {
+        spans.add(TextSpan(text: w + (isLast ? '' : ' ')));
+      }
+    }
+    return RichText(
+      maxLines: maxLines,
+      overflow: maxLines != null ? TextOverflow.ellipsis : TextOverflow.clip,
+      text: TextSpan(
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          height: 1.55,
+        ),
+        children: spans,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final int total = widget.mediaUrls.length;
     final int views = widget.post['views_count'] ?? 0;
+    final bool hasLong = widget.content.length > 120;
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black,
+        color: const Color(0xFF0D0D0D),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.10)),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.5),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            height: 430,
-            child: Stack(
+          // ── Barre gradient top ──
+          Container(
+            height: 2.5,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF3CFF7E), Color(0xFF00C8FF)],
+              ),
+            ),
+          ),
+
+          // ── Header ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+            child: Row(
               children: [
-                // ── Media ──
-                Positioned.fill(
-                  child: widget.postType == 'VIDEO'
-                      ? _isPlayingVideo
-                            ? VideoPostPlayer(videoUrl: widget.mediaUrls[0])
-                            : GestureDetector(
-                                onTap: () =>
-                                    setState(() => _isPlayingVideo = true),
-                                child: Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    Container(color: Colors.black),
-                                    const Center(
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.play_circle_fill_rounded,
-                                            color: Colors.white,
-                                            size: 72,
-                                          ),
-                                          SizedBox(height: 12),
-                                          Text(
-                                            'Appuyer pour lire',
-                                            style: TextStyle(
-                                              color: Colors.white54,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                      : PageView.builder(
-                          controller: _pageController,
-                          itemCount: total,
-                          onPageChanged: (i) =>
-                              setState(() => _currentPage = i),
-                          itemBuilder: (context, i) => GestureDetector(
-                            onTap: () => widget.onImageTap(widget.mediaUrls[i]),
-                            child: Image.network(
-                              widget.mediaUrls[i],
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              height: double.infinity,
-                              loadingBuilder: (context, child, progress) =>
-                                  progress == null
-                                  ? child
-                                  : Container(
-                                      color: const Color(0xFF1A1A1A),
-                                      child: const Center(
-                                        child: CircularProgressIndicator(
-                                          color: Color(0xFF3CFF7E),
-                                          strokeWidth: 2,
-                                        ),
-                                      ),
-                                    ),
-                              errorBuilder: (_, __, ___) => Container(
-                                color: const Color(0xFF1A1A1A),
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.broken_image_rounded,
-                                    color: Colors.white24,
-                                    size: 40,
-                                  ),
-                                ),
-                              ),
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: SweepGradient(
+                      colors: [
+                        Colors.green,
+                        Colors.red,
+                        Colors.yellow,
+                        Colors.green,
+                      ],
+                    ),
+                  ),
+                  child: CircleAvatar(
+                    radius: 18,
+                    backgroundColor: Colors.black,
+                    backgroundImage: (widget.authorImg?.isNotEmpty ?? false)
+                        ? NetworkImage(widget.authorImg!)
+                        : null,
+                    child: (widget.authorImg?.isEmpty ?? true)
+                        ? Text(
+                            widget.authorName.isNotEmpty
+                                ? widget.authorName[0].toUpperCase()
+                                : 'L',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14,
                             ),
-                          ),
-                        ),
-                ),
-
-                // ── Gradient top ──
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: 130,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.65),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
+                          )
+                        : null,
                   ),
                 ),
-
-                // ── Gradient bottom ──
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: 160,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.88),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                // ── Header auteur (top) ──
-                Positioned(
-                  top: 14,
-                  left: 14,
-                  right: 14,
-                  child: Row(
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: SweepGradient(
-                            colors: [
-                              Colors.green,
-                              Colors.red,
-                              Colors.yellow,
-                              Colors.green,
-                            ],
-                          ),
-                        ),
-                        child: CircleAvatar(
-                          radius: 18,
-                          backgroundColor: Colors.black,
-                          backgroundImage:
-                              (widget.authorImg?.isNotEmpty ?? false)
-                              ? NetworkImage(widget.authorImg!)
-                              : null,
-                          child: (widget.authorImg?.isEmpty ?? true)
-                              ? Text(
-                                  widget.authorName.isNotEmpty
-                                      ? widget.authorName[0].toUpperCase()
-                                      : 'L',
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 13,
-                                  ),
-                                )
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    widget.authorName,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 13,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Icon(
-                                  widget.isAuthorCertified
-                                      ? Icons.verified
-                                      : Icons.stars_rounded,
-                                  color: widget.isAuthorCertified
-                                      ? Colors.blueAccent
-                                      : Colors.amber,
-                                  size: 13,
-                                ),
-                              ],
-                            ),
-                            Text(
-                              widget.timeAgo(widget.createdAt),
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.5),
-                                fontSize: 10,
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              widget.authorName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
                               ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ],
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: widget.onOptions,
-                        child: const Padding(
-                          padding: EdgeInsets.only(left: 8),
-                          child: Icon(
-                            Icons.more_horiz,
-                            color: Colors.white70,
-                            size: 22,
                           ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            widget.isAuthorCertified
+                                ? Icons.verified
+                                : Icons.stars_rounded,
+                            color: widget.isAuthorCertified
+                                ? Colors.blueAccent
+                                : Colors.amber,
+                            size: 13,
+                          ),
+                        ],
+                      ),
+                      Text(
+                        widget.timeAgo(widget.createdAt),
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.5),
+                          fontSize: 10,
                         ),
                       ),
                     ],
                   ),
                 ),
-
-                // ── Texte EN HAUT juste après le header (2L max) ──
-                if (widget.content.isNotEmpty)
-                  Positioned(
-                    top: 68,
-                    left: 14,
-                    right: 14,
-                    child: Text(
-                      widget.content,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.93),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        height: 1.4,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black.withOpacity(0.7),
-                            blurRadius: 10,
-                          ),
-                        ],
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-
-                // ── Compteur photos (top right, décalé si texte présent) ──
-                if (total > 1)
-                  Positioned(
-                    top: widget.content.isNotEmpty ? 100 : 68,
-                    right: 14,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.55),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.15),
-                        ),
-                      ),
-                      child: Text(
-                        '${_currentPage + 1} / $total',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                // ── Nav prev ──
-                if (total > 1 && _currentPage > 0)
-                  Positioned(
-                    left: 10,
-                    top: 0,
-                    bottom: 0,
-                    child: Center(
-                      child: GestureDetector(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          _pageController.previousPage(
-                            duration: const Duration(milliseconds: 350),
-                            curve: Curves.easeInOutCubic,
-                          );
-                        },
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.12),
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.chevron_left_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                // ── Nav next ──
-                if (total > 1 && _currentPage < total - 1)
-                  Positioned(
-                    right: 10,
-                    top: 0,
-                    bottom: 0,
-                    child: Center(
-                      child: GestureDetector(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          _pageController.nextPage(
-                            duration: const Duration(milliseconds: 350),
-                            curve: Curves.easeInOutCubic,
-                          );
-                        },
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.12),
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.chevron_right_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                // ── Dots indicateur ──
-                if (total > 1 && total <= 10)
-                  Positioned(
-                    bottom: 58,
-                    left: 0,
-                    right: 0,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(total, (i) {
-                        final bool isActive = i == _currentPage;
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          margin: const EdgeInsets.symmetric(horizontal: 3),
-                          width: isActive ? 18 : 5,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: isActive
-                                ? Colors.white
-                                : Colors.white.withOpacity(0.35),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        );
-                      }),
-                    ),
-                  ),
-
-                // ── Actions bar bas : [❤️][💬][🔁] ··· [👁 vues] ──
-                Positioned(
-                  bottom: 0,
-                  left: 14,
-                  right: 14,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: Row(
-                      children: [
-                        _pill(
-                          icon: widget.isLiked
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_border_rounded,
-                          label: _fmt(widget.likesCount),
-                          color: widget.isLiked ? Colors.red : Colors.white,
-                          onTap: widget.onLike,
-                        ),
-                        const SizedBox(width: 8),
-                        _pill(
-                          icon: Icons.chat_bubble_outline_rounded,
-                          label: _fmt(widget.commentCount),
-                          color: Colors.white,
-                          onTap: widget.onComment,
-                        ),
-                        const SizedBox(width: 8),
-                        _pill(
-                          icon: Icons.repeat_rounded,
-                          label: _fmt(widget.repostCount),
-                          color: widget.repostCount > 0
-                              ? const Color(0xFF3CFF7E)
-                              : Colors.white,
-                          onTap: widget.onRepost,
-                        ),
-                        const Spacer(),
-                        // Vues sobres
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.remove_red_eye_outlined,
-                              size: 13,
-                              color: Colors.white.withOpacity(0.55),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _fmt(views),
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.55),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                GestureDetector(
+                  onTap: widget.onOptions,
+                  child: const Padding(
+                    padding: EdgeInsets.only(left: 8),
+                    child: Icon(
+                      Icons.more_horiz,
+                      color: Colors.white70,
+                      size: 22,
                     ),
                   ),
                 ),
@@ -2306,9 +1829,291 @@ class _MediaPostCardState extends State<_MediaPostCard> {
             ),
           ),
 
-          // ── Thumbnail strip (si multi-photos) ──
-          if (total > 1 && widget.postType != 'VIDEO')
-            _buildThumbnailStrip(total),
+          // ── Texte PROPRE au-dessus de l'image ──
+          if (widget.content.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+              child: GestureDetector(
+                onTap: hasLong
+                    ? () => setState(() => _expanded = !_expanded)
+                    : null,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _richText(widget.content, maxLines: _expanded ? null : 2),
+                    if (hasLong) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        _expanded ? 'voir moins' : 'voir plus',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.38),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+
+          const SizedBox(height: 10),
+
+          // ── IMAGE ENTIÈRE en bas du texte (AspectRatio 4/3, pas de coupure) ──
+          widget.postType == 'VIDEO'
+              ? AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: _playing
+                      ? VideoPostPlayer(videoUrl: widget.mediaUrls[0])
+                      : GestureDetector(
+                          onTap: () => setState(() => _playing = true),
+                          child: Container(
+                            color: Colors.black,
+                            child: const Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.play_circle_fill_rounded,
+                                    color: Colors.white,
+                                    size: 72,
+                                  ),
+                                  SizedBox(height: 12),
+                                  Text(
+                                    'Appuyer pour lire',
+                                    style: TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                )
+              : Stack(
+                  children: [
+                    // Images carousel — AspectRatio 4/3 pour voir l'image entière
+                    AspectRatio(
+                      aspectRatio: 4 / 3,
+                      child: PageView.builder(
+                        controller: _pc,
+                        itemCount: total,
+                        onPageChanged: (i) => setState(() => _cur = i),
+                        itemBuilder: (_, i) => GestureDetector(
+                          onTap: () => widget.onImageTap(widget.mediaUrls[i]),
+                          child: Image.network(
+                            widget.mediaUrls[i],
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                            loadingBuilder: (_, child, p) => p == null
+                                ? child
+                                : Container(
+                                    color: const Color(0xFF1A1A1A),
+                                    child: const Center(
+                                      child: CircularProgressIndicator(
+                                        color: Color(0xFF3CFF7E),
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  ),
+                            errorBuilder: (_, __, ___) => Container(
+                              color: const Color(0xFF1A1A1A),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.broken_image_rounded,
+                                  color: Colors.white24,
+                                  size: 40,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Compteur
+                    if (total > 1)
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.15),
+                            ),
+                          ),
+                          child: Text(
+                            '${_cur + 1} / $total',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                    // Nav prev
+                    if (total > 1 && _cur > 0)
+                      Positioned(
+                        left: 8,
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: GestureDetector(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              _pc.previousPage(
+                                duration: const Duration(milliseconds: 350),
+                                curve: Curves.easeInOutCubic,
+                              );
+                            },
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.55),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.15),
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.chevron_left_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    // Nav next
+                    if (total > 1 && _cur < total - 1)
+                      Positioned(
+                        right: 8,
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: GestureDetector(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              _pc.nextPage(
+                                duration: const Duration(milliseconds: 350),
+                                curve: Curves.easeInOutCubic,
+                              );
+                            },
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.55),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.15),
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.chevron_right_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    // Dots
+                    if (total > 1 && total <= 10)
+                      Positioned(
+                        bottom: 10,
+                        left: 0,
+                        right: 0,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(
+                            total,
+                            (i) => AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                              width: i == _cur ? 18 : 5,
+                              height: 5,
+                              decoration: BoxDecoration(
+                                color: i == _cur
+                                    ? Colors.white
+                                    : Colors.white.withOpacity(0.35),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+
+          // ── Thumbnail strip ──
+          if (total > 1 && widget.postType != 'VIDEO') _buildStrip(total),
+
+          // ── Divider ──
+          Divider(color: Colors.white.withOpacity(0.06), height: 1),
+
+          // ── Actions + vues ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+            child: Row(
+              children: [
+                _pill(
+                  icon: widget.isLiked
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  label: widget.fmt(widget.likesCount),
+                  color: widget.isLiked ? Colors.red : Colors.white,
+                  onTap: widget.onLike,
+                ),
+                const SizedBox(width: 8),
+                _pill(
+                  icon: Icons.chat_bubble_outline_rounded,
+                  label: widget.fmt(widget.commentCount),
+                  color: Colors.white,
+                  onTap: widget.onComment,
+                ),
+                const SizedBox(width: 8),
+                _pill(
+                  icon: Icons.repeat_rounded,
+                  label: widget.fmt(widget.repostCount),
+                  color: widget.repostCount > 0
+                      ? const Color(0xFF3CFF7E)
+                      : Colors.white,
+                  onTap: widget.onRepost,
+                ),
+                const Spacer(),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.remove_red_eye_outlined,
+                      size: 13,
+                      color: Colors.white.withOpacity(0.3),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      widget.fmt(views),
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.3),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -2319,41 +2124,39 @@ class _MediaPostCardState extends State<_MediaPostCard> {
     required String label,
     required Color color,
     required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.10),
-          borderRadius: BorderRadius.circular(50),
-          border: Border.all(color: Colors.white.withOpacity(0.07)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 17),
-            if (label != '0') ...[
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ],
-        ),
+  }) => GestureDetector(
+    onTap: () {
+      HapticFeedback.lightImpact();
+      onTap();
+    },
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(50),
+        border: Border.all(color: Colors.white.withOpacity(0.07)),
       ),
-    );
-  }
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 17),
+          if (label != '0') ...[
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
 
-  Widget _buildThumbnailStrip(int total) {
+  Widget _buildStrip(int total) {
     const int maxVisible = 5;
     final int showCount = total > maxVisible ? maxVisible - 1 : total;
     final int overflow = total > maxVisible ? total - showCount : 0;
@@ -2362,12 +2165,12 @@ class _MediaPostCardState extends State<_MediaPostCard> {
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
       child: Row(
         children: [
-          ...List.generate(showCount, (i) {
-            final bool isActive = i == _currentPage;
-            return GestureDetector(
+          ...List.generate(
+            showCount,
+            (i) => GestureDetector(
               onTap: () {
                 HapticFeedback.selectionClick();
-                _pageController.animateToPage(
+                _pc.animateToPage(
                   i,
                   duration: const Duration(milliseconds: 350),
                   curve: Curves.easeInOutCubic,
@@ -2381,10 +2184,10 @@ class _MediaPostCardState extends State<_MediaPostCard> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: isActive
+                    color: i == _cur
                         ? Colors.white.withOpacity(0.75)
                         : Colors.white.withOpacity(0.12),
-                    width: isActive ? 1.5 : 1,
+                    width: i == _cur ? 1.5 : 1,
                   ),
                 ),
                 clipBehavior: Clip.antiAlias,
@@ -2395,8 +2198,8 @@ class _MediaPostCardState extends State<_MediaPostCard> {
                       Container(color: const Color(0xFF1A1A1A)),
                 ),
               ),
-            );
-          }),
+            ),
+          ),
           if (overflow > 0)
             Container(
               width: 36,
@@ -2426,7 +2229,6 @@ class _MediaPostCardState extends State<_MediaPostCard> {
 // ═══════════════════════════════════════════════════════════════
 // SHARED COMMENTS SHEET
 // ═══════════════════════════════════════════════════════════════
-
 class SharedCommentsSheet extends StatefulWidget {
   final dynamic post;
   final SocialService socialService;
@@ -2478,12 +2280,11 @@ class _SharedCommentsSheetState extends State<SharedCommentsSheet> {
     try {
       final postId = widget.post['id'].toString();
       final raw = await widget.socialService.getCommentsStream(postId).first;
-      if (mounted) {
+      if (mounted)
         setState(() {
           _comments = raw.map((m) => CommentItem.fromMap(m)).toList();
           _isLoading = false;
         });
-      }
     } catch (_) {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -3217,7 +3018,7 @@ class _SharedCommentsSheetState extends State<SharedCommentsSheet> {
     final spans = <TextSpan>[];
     for (int i = 0; i < words.length; i++) {
       final w = words[i];
-      final bool isLast = i == words.length - 1;
+      final isLast = i == words.length - 1;
       if (w.startsWith('@')) {
         spans.add(
           TextSpan(
@@ -3259,55 +3060,51 @@ class _SharedCommentsSheetState extends State<SharedCommentsSheet> {
     required String label,
     required Color color,
     required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.only(right: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 14),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
+  }) => GestureDetector(
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 14),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
 
   Widget _replyAct({
     required IconData icon,
     required String label,
     required Color color,
     required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color, size: 12),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-            ),
+  }) => GestureDetector(
+    onTap: onTap,
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 12),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
 
   Widget _dot() => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -3321,8 +3118,6 @@ class _SharedCommentsSheetState extends State<SharedCommentsSheet> {
     ),
   );
 }
-
-// ─── Painter arbre réponses ───────────────────────────────────
 
 class _TreeLinePainter extends CustomPainter {
   final bool isLast;

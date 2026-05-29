@@ -3,12 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user.dart' as model;
+import '../services/security_service.dart';
 import 'upload_cert_pro_screen.dart';
 import 'home_screen.dart';
-
-// ═══════════════════════════════════════════════════════════════
-// CONSTANTES — RÔLES (5 rôles officiels)
-// ═══════════════════════════════════════════════════════════════
 
 class _RoleOption {
   final String value;
@@ -61,10 +58,6 @@ const List<_RoleOption> _kRoles = [
   ),
 ];
 
-// ═══════════════════════════════════════════════════════════════
-// CONSTANTES — SPORTS
-// ═══════════════════════════════════════════════════════════════
-
 const List<Map<String, dynamic>> _kSports = [
   {'value': 'football', 'label': 'Football', 'icon': Icons.sports_soccer},
   {
@@ -84,10 +77,6 @@ const List<Map<String, dynamic>> _kSports = [
   {'value': 'mma', 'label': 'MMA', 'icon': Icons.sports_kabaddi},
   {'value': 'karate', 'label': 'Karaté', 'icon': Icons.sports_martial_arts},
 ];
-
-// ═══════════════════════════════════════════════════════════════
-// CHAMPS CV DYNAMIQUES PAR RÔLE + SPORT
-// ═══════════════════════════════════════════════════════════════
 
 List<_CvField> _cvFields(String role, String sport) {
   final common = <_CvField>[
@@ -714,10 +703,6 @@ class _CvField {
   });
 }
 
-// ═══════════════════════════════════════════════════════════════
-// AUTH SCREEN
-// ═══════════════════════════════════════════════════════════════
-
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
   @override
@@ -726,6 +711,7 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   final SupabaseClient supabase = Supabase.instance.client;
+  final _security = SecurityService(); // ← AJOUT
 
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
@@ -865,6 +851,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     );
   }
 
+  // ── LOGIN avec rate limit + registerDevice + registerSession ──
   Future<void> _login() async {
     final email = _emailCtrl.text.trim();
     final pw = _passwordCtrl.text.trim();
@@ -872,6 +859,13 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       _msg("Identifiants manquants", ok: false);
       return;
     }
+
+    // ── Rate limit tentatives de connexion ──
+    if (!_security.checkLocalRateLimit('login_attempt')) {
+      _msg('Trop de tentatives. Attendez 5 minutes.', ok: false);
+      return;
+    }
+
     setState(() => _loading = true);
     try {
       final res = await supabase.auth.signInWithPassword(
@@ -889,6 +883,11 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
           return;
         }
         final user = model.User.fromJson(data);
+
+        // ── SÉCURITÉ : enregistrer device + session après login ──
+        await _security.registerDevice(user.id);
+        await _security.registerSession(user.id);
+
         if (!mounted) return;
         const proRoles = ['club', 'agent', 'journaliste'];
         if (proRoles.contains(user.role) && !user.isCertified) {
@@ -962,6 +961,10 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               ...cvData,
             })
             .eq('id', res.user!.id);
+
+        // ── SÉCURITÉ : enregistrer device après inscription ──
+        await _security.registerDevice(res.user!.id);
+
         _msg('Compte créé ! Connecte-toi maintenant 🦁');
         _switchPage(0);
         _passwordCtrl.clear();
@@ -975,10 +978,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       if (mounted) setState(() => _loading = false);
     }
   }
-
-  // ═════════════════════════════════════════════════════════════
-  // BUILD
-  // ═════════════════════════════════════════════════════════════
 
   @override
   Widget build(BuildContext context) {
@@ -1033,13 +1032,11 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     ),
   );
 
-  // ─── Header avec LOGO RÉEL ────────────────────────────────────
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
       child: Column(
         children: [
-          // Logo de l'application (remplace l'emoji)
           Container(
             width: 68,
             height: 68,
@@ -1058,7 +1055,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               child: Image.asset(
                 'assets/logo_fecaapp.png',
                 fit: BoxFit.cover,
-                // Fallback si l'image ne charge pas
                 errorBuilder: (context, error, stackTrace) => Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
@@ -1076,7 +1072,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             ),
           ),
           const SizedBox(height: 10),
-          // Titre adaptatif
           FittedBox(
             fit: BoxFit.scaleDown,
             child: const Text(
@@ -1090,7 +1085,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             ),
           ),
           const SizedBox(height: 3),
-          // Sous-titre adaptatif
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
@@ -1108,7 +1102,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ─── Toggle ──────────────────────────────────────────────────
   Widget _buildToggle() => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 24),
     child: Container(
@@ -1155,9 +1148,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ═════════════════════════════════════════════════════════════
-  // LOGIN
-  // ═════════════════════════════════════════════════════════════
   Widget _buildLogin() => SingleChildScrollView(
     padding: const EdgeInsets.fromLTRB(24, 24, 24, 30),
     child: Column(
@@ -1209,9 +1199,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     ),
   );
 
-  // ═════════════════════════════════════════════════════════════
-  // REGISTER — 3 ÉTAPES
-  // ═════════════════════════════════════════════════════════════
   Widget _buildRegisterFlow() {
     switch (_step) {
       case 0:
@@ -1225,7 +1212,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     }
   }
 
-  // ─── ÉTAPE 1 ─────────────────────────────────────────────────
   Widget _buildStep1() => SingleChildScrollView(
     padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
     child: Column(
@@ -1305,7 +1291,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     ),
   );
 
-  // ─── ÉTAPE 2 — Choix du rôle ──────────────────────────────────
   Widget _buildStep2() => SingleChildScrollView(
     padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
     child: Column(
@@ -1326,11 +1311,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 20),
-        // Grille 2 colonnes — hauteur fixe suffisante pour le contenu
         LayoutBuilder(
           builder: (context, constraints) {
             final cardWidth = (constraints.maxWidth - 10) / 2;
-            // Hauteur dynamique basée sur la largeur de la carte
             final cardHeight = cardWidth * 0.72;
             return Wrap(
               spacing: 10,
@@ -1366,7 +1349,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     ),
   );
 
-  // ─── ÉTAPE 3 — CV Sportif ──────────────────────────────────────
   Widget _buildStep3() {
     final fields = _cvFields(_role, _sport);
     return SingleChildScrollView(
@@ -1393,7 +1375,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 6),
-          // Badge rôle sélectionné
           Container(
             margin: const EdgeInsets.only(top: 8, bottom: 18),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
@@ -1427,7 +1408,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               ],
             ),
           ),
-          // Champs CV
           ...fields.map((f) {
             if (f.isDropdown) return _cvDropdownField(f);
             return Padding(
@@ -1442,7 +1422,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               ),
             );
           }),
-          // Note facultatif
           Container(
             margin: const EdgeInsets.only(top: 4, bottom: 24),
             padding: const EdgeInsets.all(14),
@@ -1479,7 +1458,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ─── Dropdown CV ─────────────────────────────────────────────
   Widget _cvDropdownField(_CvField f) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -1493,7 +1471,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         child: DropdownButtonFormField<String>(
           value: _cvDropdowns[f.key] ?? f.dropdownItems.first,
           dropdownColor: const Color(0xFF1A1A1A),
-          isExpanded: true, // ← IMPORTANT : empêche l'overflow
+          isExpanded: true,
           style: const TextStyle(color: Colors.white, fontSize: 14),
           icon: const Icon(
             Icons.keyboard_arrow_down_rounded,
@@ -1531,7 +1509,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ─── Role Card (responsive, sans overflow) ───────────────────
   Widget _roleCard(_RoleOption r) {
     final sel = _role == r.value;
     return GestureDetector(
@@ -1610,7 +1587,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // FittedBox pour que le label s'adapte à la largeur de la carte
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
@@ -1641,8 +1617,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       ),
     );
   }
-
-  // ─── Widgets utilitaires ─────────────────────────────────────
 
   Widget _stepBar(int cur, int tot) => Row(
     children: [
@@ -1692,7 +1666,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         letterSpacing: -0.4,
         height: 1.2,
       ),
-      // Adaptatif : le texte peut passer à la ligne si besoin
       overflow: TextOverflow.visible,
     ),
   );
@@ -1776,8 +1749,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                 vertical: maxLines > 1 ? 14 : 18,
               ),
               floatingLabelBehavior: FloatingLabelBehavior.auto,
-              // Empêche le label de déborder
-              isDense: false,
             ),
           ),
         ),
@@ -2013,7 +1984,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     ),
   );
 
-  // ─── Mot de passe oublié ─────────────────────────────────────
   void _showForgotPassword() {
     final ctrl = TextEditingController();
     showModalBottomSheet(
@@ -2045,7 +2015,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               ),
             ),
             const SizedBox(height: 22),
-            // Logo dans le bottom sheet aussi
             Row(
               children: [
                 SizedBox(
